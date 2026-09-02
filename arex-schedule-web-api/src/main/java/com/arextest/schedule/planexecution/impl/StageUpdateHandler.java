@@ -1,6 +1,6 @@
 package com.arextest.schedule.planexecution.impl;
 
-import com.arextest.schedule.dao.mongodb.ReplayPlanRepository;
+import com.arextest.schedule.dao.ReplayPlanRepository;
 import com.arextest.schedule.model.ReplayPlan;
 import com.arextest.schedule.model.plan.PlanStageEnum;
 import com.arextest.schedule.model.plan.ReplayPlanStageInfo;

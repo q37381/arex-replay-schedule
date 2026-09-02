@@ -1,5 +1,6 @@
 package com.arextest.schedule.dao.mongodb;
 
+import com.arextest.schedule.dao.ReplayBizLogRepository;
 import com.arextest.schedule.model.bizlog.BizLog;
 import com.arextest.schedule.model.bizlog.ReplayBizLogQueryCondition;
 import com.arextest.schedule.model.converter.ReplayBizLogConverter;
@@ -8,6 +9,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -16,10 +18,14 @@ import org.springframework.stereotype.Repository;
 import org.springframework.util.CollectionUtils;
 
 /**
+ * Mongo implementation of {@link ReplayBizLogRepository}, active when
+ * arex.schedule.repository.type=mongodb.
+ * <p>
  * Created by qzmo on 2023/5/31.
  */
 @Repository
-public class ReplayBizLogRepository implements RepositoryField {
+@ConditionalOnProperty(name = "arex.schedule.repository.type", havingValue = "mongodb")
+public class ReplayBizLogMongoRepository implements ReplayBizLogRepository, RepositoryField {
 
   private static final String PLAN_ID_KEY = "planId";
   private static final String LOG_LEVEL_KEY = "level";
@@ -33,6 +39,7 @@ public class ReplayBizLogRepository implements RepositoryField {
   @Autowired
   MongoTemplate mongoTemplate;
 
+  @Override
   public void saveAll(Collection<BizLog> logs) {
     List<ReplayBizLogCollection> logDocs = logs
         .stream()
@@ -44,10 +51,12 @@ public class ReplayBizLogRepository implements RepositoryField {
     }
   }
 
+  @Override
   public List<ReplayBizLogCollection> queryByPlanId(String planId) {
     return this.mongoTemplate.find(commonQuery(planId, null), ReplayBizLogCollection.class);
   }
 
+  @Override
   public List<ReplayBizLogCollection> queryByPlanId(String planId,
       ReplayBizLogQueryCondition condition) {
     Query query = commonQuery(planId, condition);
@@ -57,6 +66,7 @@ public class ReplayBizLogRepository implements RepositoryField {
     return this.mongoTemplate.find(query, ReplayBizLogCollection.class);
   }
 
+  @Override
   public long countByPlanId(String planId, ReplayBizLogQueryCondition condition) {
     Query query = commonQuery(planId, condition);
 

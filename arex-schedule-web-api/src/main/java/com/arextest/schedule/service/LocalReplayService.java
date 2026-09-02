@@ -8,9 +8,9 @@ import com.arextest.schedule.common.JsonUtils;
 import com.arextest.schedule.common.SendLimiter;
 import com.arextest.schedule.common.SendRedisLimiter;
 import com.arextest.schedule.comparer.CompareConfigService;
-import com.arextest.schedule.dao.mongodb.ReplayActionCaseItemRepository;
-import com.arextest.schedule.dao.mongodb.ReplayPlanActionRepository;
-import com.arextest.schedule.dao.mongodb.ReplayPlanRepository;
+import com.arextest.schedule.dao.ReplayActionCaseItemRepository;
+import com.arextest.schedule.dao.ReplayPlanActionRepository;
+import com.arextest.schedule.dao.ReplayPlanRepository;
 import com.arextest.schedule.mdc.MDCTracer;
 import com.arextest.schedule.model.CaseSendStatusType;
 import com.arextest.schedule.model.CommonResponse;
@@ -519,7 +519,7 @@ public class LocalReplayService {
             CollectionUtils.isNotEmpty(caseItems) ? caseItems.get(caseItems.size() - 1) : null;
         caseItems = replayActionCaseItemRepository.waitingSendList(replayPlan.getId(),
             CommonConstant.MAX_PAGE_SIZE,
-            executionContext.getContextCaseQuery(),
+            executionContext.getContextCaseCondition(),
             Optional.ofNullable(lastItem).map(ReplayActionCaseItem::getRecordTime).orElse(null));
 
         caseItems.removeIf(item -> caseIdList.contains(item.getId()));

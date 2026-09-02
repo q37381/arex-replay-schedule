@@ -1,6 +1,6 @@
 package com.arextest.schedule.beans;
 
-import com.arextest.schedule.dao.mongodb.ReplayActionCaseItemRepository;
+import com.arextest.schedule.dao.ReplayActionCaseItemRepository;
 import com.arextest.schedule.planexecution.PlanExecutionContextProvider;
 import com.arextest.schedule.planexecution.impl.DefaultExecutionContextProvider;
 import com.arextest.schedule.sender.ReplaySenderFactory;

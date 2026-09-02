@@ -14,6 +14,7 @@ import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.codecs.pojo.PojoCodecProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.mongodb.MongoDatabaseFactory;
@@ -28,6 +29,7 @@ import org.springframework.data.mongodb.core.mapping.MongoMappingContext;
 
 @Slf4j
 @Configuration(proxyBeanMethods = false)
+@ConditionalOnProperty(name = "arex.schedule.repository.type", havingValue = "mongodb")
 public class MongodbConfiguration {
 
   @Value("${arex.mongo.uri}")

@@ -9,7 +9,8 @@ import com.arextest.common.utils.ResponseUtils;
 import com.arextest.config.model.dao.config.AppCollection;
 import com.arextest.config.model.dao.config.SystemConfigurationCollection;
 import com.arextest.config.model.dao.config.SystemConfigurationCollection.KeySummary;
-import com.arextest.schedule.dao.mongodb.ApplicationRepository;
+import com.arextest.schedule.dao.ApplicationRepository;
+import com.arextest.schedule.dao.SystemConfigurationRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Optional;
 import java.util.Set;
@@ -20,9 +21,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.aspectj.lang.ProceedingJoinPoint;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -41,7 +39,7 @@ public class AppAuthAspectExecutor {
 
   private final ApplicationRepository applicationRepository;
 
-  private final MongoTemplate mongoTemplate;
+  private final SystemConfigurationRepository systemConfigurationRepository;
 
   private final JWTService jwtService;
 
@@ -128,10 +126,8 @@ public class AppAuthAspectExecutor {
   }
 
   private void init() {
-    Query query = new Query(
-        Criteria.where(SystemConfigurationCollection.Fields.key).is(KeySummary.AUTH_SWITCH));
-    SystemConfigurationCollection collection = mongoTemplate.findOne(query,
-        SystemConfigurationCollection.class, SystemConfigurationCollection.DOCUMENT_NAME);
+    SystemConfigurationCollection collection =
+        systemConfigurationRepository.queryByKey(KeySummary.AUTH_SWITCH);
     authSwitch = Optional.ofNullable(collection)
         .map(SystemConfigurationCollection::getAuthSwitch)
         .orElse(null);

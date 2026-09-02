@@ -14,7 +14,7 @@ import com.arextest.schedule.comparer.ComparisonWriter;
 import com.arextest.schedule.comparer.CustomComparisonConfigurationHandler;
 import com.arextest.schedule.comparer.EncodingUtils;
 import com.arextest.schedule.comparer.ReplayResultComparer;
-import com.arextest.schedule.dao.mongodb.ReplayActionCaseItemRepository;
+import com.arextest.schedule.dao.ReplayActionCaseItemRepository;
 import com.arextest.schedule.mdc.MDCTracer;
 import com.arextest.schedule.model.CaseSendStatusType;
 import com.arextest.schedule.model.CompareModeType;

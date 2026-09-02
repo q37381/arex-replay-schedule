@@ -1,5 +1,6 @@
 package com.arextest.schedule.dao.mongodb;
 
+import com.arextest.schedule.dao.ReplayPlanRepository;
 import com.arextest.schedule.dao.mongodb.util.MongoHelper;
 import com.arextest.schedule.model.ReplayPlan;
 import com.arextest.schedule.model.converter.ReplayPlanConverter;
@@ -10,6 +11,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -17,14 +19,21 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Repository;
 
 /**
+ * Mongo implementation of {@link ReplayPlanRepository}, active when
+ * arex.schedule.repository.type=mongodb.
+ * <p>
  * Created by rchen9 on 2022/8/19.
  */
 @Repository
 @RequiredArgsConstructor
-public class ReplayPlanRepository implements RepositoryField {
+@ConditionalOnProperty(name = "arex.schedule.repository.type", havingValue = "mongodb")
+public class ReplayPlanMongoRepository implements ReplayPlanRepository, RepositoryField {
+
+  private static final String DASH_ID = "_id";
 
   private final MongoTemplate mongoTemplate;
 
+  @Override
   public boolean save(ReplayPlan replayPlan) {
     ReplayPlanCollection replayPlanCollection = ReplayPlanConverter.INSTANCE.daoFromDto(replayPlan);
     ReplayPlanCollection insert = mongoTemplate.insert(replayPlanCollection);
@@ -34,6 +43,7 @@ public class ReplayPlanRepository implements RepositoryField {
     return insert.getId() != null;
   }
 
+  @Override
   public boolean updateCaseTotal(String planId, int caseTotal) {
     Query query = Query.query(Criteria.where(DASH_ID).is(planId));
     Update update = MongoHelper.getUpdate();
@@ -43,6 +53,7 @@ public class ReplayPlanRepository implements RepositoryField {
     return updateResult.getModifiedCount() > 0;
   }
 
+  @Override
   public boolean finish(String planId) {
     Query query = Query.query(Criteria.where(DASH_ID).is(planId));
     Update update = MongoHelper.getUpdate();
@@ -52,6 +63,7 @@ public class ReplayPlanRepository implements RepositoryField {
     return updateResult.getModifiedCount() > 0;
   }
 
+  @Override
   public List<ReplayPlan> timeoutPlanList(Duration offsetDuration, Duration maxDuration) {
     Query query = Query.query(
         Criteria.where(ReplayPlanCollection.Fields.PLAN_FINISH_TIME).is(null));
@@ -66,6 +78,7 @@ public class ReplayPlanRepository implements RepositoryField {
         .collect(Collectors.toList());
   }
 
+  @Override
   public void updateStage(ReplayPlan replayPlan) {
     Query query = Query.query(Criteria.where(DASH_ID).is(replayPlan.getId()));
     Update update = MongoHelper.getUpdate();
@@ -74,6 +87,7 @@ public class ReplayPlanRepository implements RepositoryField {
     mongoTemplate.findAndModify(query, update, ReplayPlanCollection.class);
   }
 
+  @Override
   public ReplayPlan query(String planId) {
     Query query = Query.query(Criteria.where(DASH_ID).is(planId));
     ReplayPlanCollection replayPlanCollection = mongoTemplate.findOne(query,

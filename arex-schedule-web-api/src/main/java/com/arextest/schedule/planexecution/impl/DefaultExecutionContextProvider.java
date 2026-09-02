@@ -2,7 +2,8 @@ package com.arextest.schedule.planexecution.impl;
 
 import com.arextest.model.replay.CaseSendScene;
 import com.arextest.schedule.bizlog.BizLogger;
-import com.arextest.schedule.dao.mongodb.ReplayActionCaseItemRepository;
+import com.arextest.schedule.dao.CaseQueryCondition;
+import com.arextest.schedule.dao.ReplayActionCaseItemRepository;
 import com.arextest.schedule.mdc.MDCTracer;
 import com.arextest.schedule.model.ExecutionContextActionType;
 import com.arextest.schedule.model.PlanExecutionContext;
@@ -13,7 +14,6 @@ import com.arextest.schedule.planexecution.PlanExecutionContextProvider;
 import com.arextest.schedule.sender.ReplaySender;
 import com.arextest.schedule.sender.ReplaySenderFactory;
 import com.arextest.schedule.utils.ReplayParentBinder;
-import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -24,7 +24,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.retry.support.RetryTemplate;
 
 /**
@@ -60,8 +59,9 @@ public class DefaultExecutionContextProvider
       dependenciesHolder.setContextIdentifier(null);
       context.setDependencies(dependenciesHolder);
 
-      context.setContextCaseQuery(Lists.newArrayList(
-          Criteria.where(ReplayActionCaseItem.Fields.CONTEXT_IDENTIFIER).isNull()));
+      CaseQueryCondition condition = new CaseQueryCondition();
+      condition.setNullContextIdentifier(true);
+      context.setContextCaseCondition(condition);
       contexts.add(context);
     }
 
@@ -76,8 +76,9 @@ public class DefaultExecutionContextProvider
       context.setDependencies(dependenciesHolder);
 
       // set up query for cases of this context
-      context.setContextCaseQuery(Lists.newArrayList(
-          Criteria.where(ReplayActionCaseItem.Fields.CONTEXT_IDENTIFIER).is(identifier)));
+      CaseQueryCondition condition = new CaseQueryCondition();
+      condition.setContextIdentifier(identifier);
+      context.setContextCaseCondition(condition);
       contexts.add(context);
     });
 
@@ -85,8 +86,7 @@ public class DefaultExecutionContextProvider
       List<String> planItemIds = plan.getReplayActionItemList().stream()
           .map(ReplayActionItem::getId)
           .collect(Collectors.toList());
-      Criteria criteria = Criteria.where(ReplayActionCaseItem.Fields.PLAN_ITEM_ID).in(planItemIds);
-      contexts.forEach(context -> context.getContextCaseQuery().add(criteria));
+      contexts.forEach(context -> context.getContextCaseCondition().setPlanItemIds(planItemIds));
     }
     return contexts;
   }

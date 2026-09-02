@@ -1,6 +1,6 @@
 package com.arextest.schedule.service;
 
-import com.arextest.schedule.dao.mongodb.ReplayBizLogRepository;
+import com.arextest.schedule.dao.ReplayBizLogRepository;
 import com.arextest.schedule.model.bizlog.BizLog;
 import com.arextest.schedule.model.bizlog.ReplayBizLogQueryCondition;
 import com.arextest.schedule.model.dao.mongodb.ReplayBizLogCollection;

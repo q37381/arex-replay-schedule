@@ -1,5 +1,6 @@
 package com.arextest.schedule.dao.mongodb;
 
+import com.arextest.schedule.dao.ReplayNoiseRepository;
 import com.arextest.schedule.dao.mongodb.util.MongoHelper;
 import com.arextest.schedule.model.converter.ReplayNoiseConverter;
 import com.arextest.schedule.model.dao.mongodb.ModelBase.Fields;
@@ -19,6 +20,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.mongodb.core.BulkOperations;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -26,13 +28,19 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Repository;
 
+/**
+ * Mongo implementation of {@link ReplayNoiseRepository}, active when
+ * arex.schedule.repository.type=mongodb.
+ */
 @Slf4j
 @Repository
-public class ReplayNoiseRepository implements RepositoryField {
+@ConditionalOnProperty(name = "arex.schedule.repository.type", havingValue = "mongodb")
+public class ReplayNoiseMongoRepository implements ReplayNoiseRepository, RepositoryField {
 
   @Resource
   private MongoTemplate mongoTemplate;
 
+  @Override
   public boolean saveList(List<ReplayNoiseDto> replayNoiseDtoList) {
     if (CollectionUtils.isEmpty(replayNoiseDtoList)) {
       return true;
@@ -85,6 +93,7 @@ public class ReplayNoiseRepository implements RepositoryField {
     return true;
   }
 
+  @Override
   public boolean removeReplayNoise(List<String> planItemIds) {
     if (CollectionUtils.isEmpty(planItemIds)) {
       return true;
@@ -95,6 +104,7 @@ public class ReplayNoiseRepository implements RepositoryField {
     return true;
   }
 
+  @Override
   public List<ReplayNoiseDto> queryReplayNoise(@NotBlank String planId, String planItemId) {
     Query query = Query.query(Criteria.where(ReplayNoiseCollection.Fields.PLAN_ID).is(planId));
     if (StringUtils.isNotEmpty(planItemId)) {
@@ -106,6 +116,7 @@ public class ReplayNoiseRepository implements RepositoryField {
         .collect(Collectors.toList());
   }
 
+  @Override
   public boolean updateReplayNoiseStatus(List<UpdateNoiseItem> updateNoiseItems) {
 
     try {

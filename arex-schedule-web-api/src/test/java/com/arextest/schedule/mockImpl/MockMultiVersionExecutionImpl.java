@@ -1,5 +1,6 @@
 package com.arextest.schedule.mockImpl;
 
+import com.arextest.schedule.dao.CaseQueryCondition;
 import com.arextest.schedule.mdc.MDCTracer;
 import com.arextest.schedule.model.ExecutionContextActionType;
 import com.arextest.schedule.model.PlanExecutionContext;
@@ -7,14 +8,12 @@ import com.arextest.schedule.model.ReplayActionCaseItem;
 import com.arextest.schedule.model.ReplayPlan;
 import com.arextest.schedule.planexecution.PlanExecutionContextProvider;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.data.mongodb.core.query.Criteria;
 
 
 /**
@@ -43,9 +42,9 @@ public class MockMultiVersionExecutionImpl implements
       singletonContext.setDependencies(dependencies);
 
       // set up base query for cases belonging to this context
-      Criteria dummyCriteria = Criteria.where(ReplayActionCaseItem.Fields.CONTEXT_IDENTIFIER)
-          .is(String.valueOf(i));
-      singletonContext.setContextCaseQuery(Collections.singletonList(dummyCriteria));
+      CaseQueryCondition condition = new CaseQueryCondition();
+      condition.setContextIdentifier(String.valueOf(i));
+      singletonContext.setContextCaseCondition(condition);
       contexts.add(singletonContext);
     }
 

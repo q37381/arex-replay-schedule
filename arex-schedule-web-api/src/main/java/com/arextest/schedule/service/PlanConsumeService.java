@@ -5,7 +5,7 @@ import com.arextest.schedule.bizlog.BizLogger;
 import com.arextest.schedule.common.CommonConstant;
 import com.arextest.schedule.common.SendSemaphoreLimiter;
 import com.arextest.schedule.comparer.CompareConfigService;
-import com.arextest.schedule.dao.mongodb.ReplayActionCaseItemRepository;
+import com.arextest.schedule.dao.ReplayActionCaseItemRepository;
 import com.arextest.schedule.mdc.AbstractTracedRunnable;
 import com.arextest.schedule.model.ExecutionStatus;
 import com.arextest.schedule.model.PlanExecutionContext;
@@ -153,7 +153,7 @@ public final class PlanConsumeService {
 
       caseItems = replayActionCaseItemRepository.waitingSendList(replayPlan.getId(),
           CommonConstant.MAX_PAGE_SIZE,
-          executionContext.getContextCaseQuery(),
+          executionContext.getContextCaseCondition(),
           Optional.ofNullable(lastItem).map(ReplayActionCaseItem::getRecordTime).orElse(null));
 
       caseItems.removeIf(caseItem -> lastBatchIds.contains(caseItem.getId()));

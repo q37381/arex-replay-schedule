@@ -4,9 +4,9 @@ import com.arextest.schedule.common.CommonConstant;
 import com.arextest.schedule.common.SendSemaphoreLimiter;
 import com.arextest.schedule.comparer.ReplayResultComparer;
 import com.arextest.schedule.comparer.impl.PrepareCompareSourceRemoteLoader;
-import com.arextest.schedule.dao.mongodb.ReplayCompareResultRepositoryImpl;
-import com.arextest.schedule.dao.mongodb.ReplayNoiseRepository;
-import com.arextest.schedule.dao.mongodb.ReplayPlanActionRepository;
+import com.arextest.schedule.dao.ReplayCompareResultRepository;
+import com.arextest.schedule.dao.ReplayNoiseRepository;
+import com.arextest.schedule.dao.ReplayPlanActionRepository;
 import com.arextest.schedule.mdc.MDCTracer;
 import com.arextest.schedule.model.CaseSendStatusType;
 import com.arextest.schedule.model.CompareModeType;
@@ -57,7 +57,7 @@ public class ReplayNoiseIdentifyService implements ReplayNoiseIdentify {
   /**
    * to save the compare result
    */
-  private ReplayCompareResultRepositoryImpl replayCompareResultRepository;
+  private ReplayCompareResultRepository replayCompareResultRepository;
   /**
    * to save the noise
    */
@@ -69,7 +69,7 @@ public class ReplayNoiseIdentifyService implements ReplayNoiseIdentify {
 
   public ReplayNoiseIdentifyService(
       ReplayResultComparer replayResultComparer,
-      ReplayCompareResultRepositoryImpl replayCompareResultRepository,
+      ReplayCompareResultRepository replayCompareResultRepository,
       ReplayNoiseRepository replayNoiseRepository,
       ReplayPlanActionRepository replayPlanActionRepository,
       ReplaySenderFactory replaySenderFactory,

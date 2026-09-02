@@ -9,7 +9,10 @@ import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration;
+import org.springframework.boot.autoconfigure.data.mongo.MongoRepositoriesAutoConfiguration;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
+import org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.web.servlet.support.SpringBootServletInitializer;
 import org.springframework.retry.annotation.EnableRetry;
@@ -21,7 +24,10 @@ import org.springframework.retry.annotation.EnableRetry;
 @Slf4j
 @EnableRetry
 @SpringBootApplication(scanBasePackages = "com.arextest.schedule", exclude = {
-    DataSourceAutoConfiguration.class})
+    DataSourceAutoConfiguration.class,
+    MongoAutoConfiguration.class,
+    MongoDataAutoConfiguration.class,
+    MongoRepositoriesAutoConfiguration.class})
 public class WebSpringBootServletInitializer extends SpringBootServletInitializer {
 
   @Value("${arex.prometheus.port}")

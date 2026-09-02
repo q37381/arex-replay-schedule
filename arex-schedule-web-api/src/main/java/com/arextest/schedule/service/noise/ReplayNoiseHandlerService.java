@@ -3,8 +3,7 @@ package com.arextest.schedule.service.noise;
 import com.arextest.common.model.response.GenericResponseType;
 import com.arextest.model.mock.MockCategoryType;
 import com.arextest.schedule.client.HttpWepServiceApiClient;
-import com.arextest.schedule.dao.mongodb.ReplayNoiseRepository;
-import com.arextest.schedule.dao.mongodb.util.MongoHelper;
+import com.arextest.schedule.dao.ReplayNoiseRepository;
 import com.arextest.schedule.model.converter.ReplayNoiseConverter;
 import com.arextest.schedule.model.dao.mongodb.ReplayNoiseCollection;
 import com.arextest.schedule.model.dao.mongodb.ReplayNoiseCollection.ReplayNoiseItemDao;
@@ -155,8 +154,10 @@ public class ReplayNoiseHandlerService {
         for (QueryNoiseResponseType.NoiseItem noiseItem : noiseItemList) {
           String identifier = noiseItem.getIdentifier();
           // add exclude noise item
-          updateFields.put(MongoHelper.appendDot(ReplayNoiseCollection.Fields.MAY_IGNORE_ITEMS,
-              identifier, ReplayNoiseItemDao.Fields.STATUS), ReplayNoiseStatus.STATUS_EXCLUDE);
+          updateFields.put(
+              String.join(".", ReplayNoiseCollection.Fields.MAY_IGNORE_ITEMS, identifier,
+                  ReplayNoiseItemDao.Fields.STATUS),
+              ReplayNoiseStatus.STATUS_EXCLUDE);
 
           // add exclusions to config
           ComparisonExclusionsConfiguration exclusionConfig = new ComparisonExclusionsConfiguration();

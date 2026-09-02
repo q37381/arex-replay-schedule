@@ -6,7 +6,7 @@ import com.arextest.schedule.common.CommonConstant;
 import com.arextest.schedule.common.SendSemaphoreLimiter;
 import com.arextest.schedule.comparer.ComparisonWriter;
 import com.arextest.schedule.comparer.ReplayResultComparer;
-import com.arextest.schedule.dao.mongodb.ReplayActionCaseItemRepository;
+import com.arextest.schedule.dao.ReplayActionCaseItemRepository;
 import com.arextest.schedule.mdc.MDCTracer;
 import com.arextest.schedule.model.CaseSendStatusType;
 import com.arextest.schedule.model.ExecutionStatus;
@@ -110,7 +110,7 @@ public class ReplayCaseTransmitServiceImpl implements ReplayCaseTransmitService 
 
     Map<String, Long> caseCountMap = replayActionCaseItemRepository.countWaitHandlingByAction(
         replayPlan.getId(),
-        executionContext.getContextCaseQuery());
+        executionContext.getContextCaseCondition());
     Map<String, ReplayActionItem> actionItemMap = replayPlan.getActionItemMap();
 
     for (Map.Entry<String, Long> actionIdToCaseCount : caseCountMap.entrySet()) {

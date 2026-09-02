@@ -5,8 +5,16 @@ spring:
     default-property-inclusion: non_null
     serialization:
       FAIL_ON_EMPTY_BEANS: false
+  datasource:
+    url: ${AREX_MYSQL_URL:jdbc:mysql://localhost:3306/arex_storage_db?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true}
+    username: ${AREX_MYSQL_USER:root}
+    password: ${AREX_MYSQL_PASSWORD:root}
+    driver-class-name: com.mysql.cj.jdbc.Driver
   profiles:
     active: prod
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
 arex:
   api:
     config:
@@ -65,6 +73,9 @@ arex:
     max:
       attempts: 2
   schedule:
+    # persistence backend: mysql | mongodb(legacy)
+    repository:
+      type: ${AREX_SCHEDULE_REPOSITORY_TYPE:mysql}
     bizLog:
       secondToSave: 30
       sizeToSave: 100

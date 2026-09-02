@@ -12,7 +12,7 @@ import com.arextest.schedule.comparer.CompareConfigService;
 import com.arextest.schedule.comparer.CompareService;
 import com.arextest.schedule.comparer.CustomComparisonConfigurationHandler;
 import com.arextest.schedule.comparer.EncodingUtils;
-import com.arextest.schedule.dao.mongodb.ReplayCompareResultRepositoryImpl;
+import com.arextest.schedule.dao.ReplayCompareResultRepository;
 import com.arextest.schedule.model.ReplayCompareResult;
 import com.arextest.schedule.model.config.ComparisonInterfaceConfig;
 import com.arextest.schedule.model.config.ReplayComparisonConfig;
@@ -37,7 +37,7 @@ import org.springframework.stereotype.Component;
 public class QueryReplayMsgService {
 
   @Resource
-  private ReplayCompareResultRepositoryImpl replayCompareResultRepository;
+  private ReplayCompareResultRepository replayCompareResultRepository;
   @Resource
   private CompareConfigService compareConfigService;
   @Resource

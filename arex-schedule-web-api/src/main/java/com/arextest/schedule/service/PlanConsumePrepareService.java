@@ -2,9 +2,9 @@ package com.arextest.schedule.service;
 
 import com.arextest.common.config.DefaultApplicationConfig;
 import com.arextest.schedule.common.CommonConstant;
-import com.arextest.schedule.dao.mongodb.ReplayActionCaseItemRepository;
-import com.arextest.schedule.dao.mongodb.ReplayPlanActionRepository;
-import com.arextest.schedule.dao.mongodb.ReplayPlanRepository;
+import com.arextest.schedule.dao.ReplayActionCaseItemRepository;
+import com.arextest.schedule.dao.ReplayPlanActionRepository;
+import com.arextest.schedule.dao.ReplayPlanRepository;
 import com.arextest.schedule.model.AppServiceDescriptor;
 import com.arextest.schedule.model.AppServiceOperationDescriptor;
 import com.arextest.schedule.model.CaseProviderEnum;

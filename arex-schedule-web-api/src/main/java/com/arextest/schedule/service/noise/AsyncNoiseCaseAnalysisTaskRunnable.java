@@ -12,9 +12,9 @@ import com.arextest.schedule.common.CommonConstant;
 import com.arextest.schedule.comparer.CategoryComparisonHolder;
 import com.arextest.schedule.comparer.ReplayResultComparer;
 import com.arextest.schedule.comparer.impl.PrepareCompareSourceRemoteLoader;
-import com.arextest.schedule.dao.mongodb.ReplayCompareResultRepositoryImpl;
-import com.arextest.schedule.dao.mongodb.ReplayNoiseRepository;
-import com.arextest.schedule.dao.mongodb.ReplayPlanActionRepository;
+import com.arextest.schedule.dao.ReplayCompareResultRepository;
+import com.arextest.schedule.dao.ReplayNoiseRepository;
+import com.arextest.schedule.dao.ReplayPlanActionRepository;
 import com.arextest.schedule.mdc.MDCTracer;
 import com.arextest.schedule.model.ReplayActionCaseItem;
 import com.arextest.schedule.model.ReplayCompareResult;
@@ -52,7 +52,7 @@ public class AsyncNoiseCaseAnalysisTaskRunnable extends AbstractContextWithTrace
 
   private ReplayResultComparer replayResultComparer;
 
-  private ReplayCompareResultRepositoryImpl replayCompareResultRepository;
+  private ReplayCompareResultRepository replayCompareResultRepository;
 
   private ReplayNoiseRepository replayNoiseRepository;
 

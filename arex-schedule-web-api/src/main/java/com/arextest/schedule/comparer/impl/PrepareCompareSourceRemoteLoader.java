@@ -10,13 +10,17 @@ import com.arextest.schedule.client.HttpWepServiceApiClient;
 import com.arextest.schedule.comparer.CategoryComparisonHolder;
 import com.arextest.schedule.comparer.CategoryComparisonHolder.CompareResultItem;
 import com.arextest.schedule.comparer.CompareItem;
+import com.arextest.schedule.dao.mysql.MockerRecordEntity;
+import com.arextest.schedule.dao.mysql.MockerRecordMapper;
 import com.arextest.schedule.model.ReplayActionCaseItem;
+import com.arextest.schedule.model.converter.MockerRecordConverter;
 import com.arextest.schedule.serialization.ZstdJacksonSerializer;
 import com.arextest.schedule.service.MetricService;
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -30,7 +34,7 @@ public final class PrepareCompareSourceRemoteLoader {
   private static final int INDEX_NOT_FOUND = -1;
   @Resource
   MetricService metricService;
-  @Value("${arex.storage.replayResult.url}")
+  @Value("${arex.storage.replayResult.url:}")
   private String replayResultUrl;
   @Resource
   private HttpWepServiceApiClient httpWepServiceApiClient;
@@ -38,6 +42,10 @@ public final class PrepareCompareSourceRemoteLoader {
   private ZstdJacksonSerializer zstdJacksonSerializer;
   @Resource
   private PrepareCompareItemBuilder prepareCompareItemBuilder;
+  @Resource
+  private MockerRecordMapper mockerRecordMapper;
+  @Resource
+  private MockerRecordConverter mockerRecordConverter;
 
   public List<CategoryComparisonHolder> buildWaitCompareList(ReplayActionCaseItem caseItem,
       boolean useReplayId) {
@@ -70,17 +78,143 @@ public final class PrepareCompareSourceRemoteLoader {
   }
 
   // TODO: In the scenario where the operation is empty, there is a problem of redundant returns in the record.
-  public List<CategoryComparisonHolder> getReplayResult(String replayId, String resultId) {
-    QueryReplayResultResponseType responseType = remoteLoad(replayId, resultId);
-    return decodeResult(responseType);
+  public List<CategoryComparisonHolder> getReplayResult(String recordId, String replayId) {
+    // Primary path: HTTP call to storage's /replayResult endpoint
+    if (StringUtils.isNotBlank(replayResultUrl)) {
+      try {
+        QueryReplayResultResponseType responseType = remoteLoad(recordId, replayId);
+        List<CategoryComparisonHolder> result = decodeResult(responseType);
+        if (CollectionUtils.isNotEmpty(result)) {
+          return result;
+        }
+        LOGGER.warn("Storage returned empty result, falling back to MySQL direct query");
+      } catch (Exception e) {
+        LOGGER.warn("Storage HTTP call failed, falling back to MySQL: {}", e.getMessage());
+      }
+    }
+    
+    // Fallback path: Direct MySQL query from storage's mocker_record table
+    // This bypasses storage's redis layer and works even when storage is unavailable
+    return loadFromMySql(recordId, replayId);
   }
 
-  private QueryReplayResultResponseType remoteLoad(String replayId, String resultId) {
+  private QueryReplayResultResponseType remoteLoad(String recordId, String resultId) {
     QueryReplayResultRequestType resultRequest = new QueryReplayResultRequestType();
-    resultRequest.setRecordId(replayId);
+    resultRequest.setRecordId(recordId);
     resultRequest.setReplayResultId(resultId);
     return httpWepServiceApiClient.retryZstdJsonPost(replayResultUrl,
         resultRequest, QueryReplayResultResponseType.class);
+  }
+
+  /**
+   * Load mockers directly from storage's MySQL mocker_record table.
+   */
+  private List<CategoryComparisonHolder> loadFromMySql(String recordId, String replayId) {
+    List<MockerRecordEntity> recordMockers = mockerRecordMapper.queryByRecordId(recordId, null);
+    List<MockerRecordEntity> replayMockers = mockerRecordMapper.queryByReplayId(replayId, null);
+    
+    if (CollectionUtils.isEmpty(recordMockers) || CollectionUtils.isEmpty(replayMockers)) {
+      LOGGER.warn("MySQL query returned empty: recordId={}, replayId={}, recordSize={}, replaySize={}",
+          recordId, replayId, 
+          recordMockers == null ? 0 : recordMockers.size(),
+          replayMockers == null ? 0 : replayMockers.size());
+      return Collections.emptyList();
+    }
+    
+    // Convert entities to AREXMocker
+    List<AREXMocker> recordMockerList = recordMockers.stream()
+        .map(mockerRecordConverter::toMocker)
+        .filter(m -> m != null)
+        .collect(Collectors.toList());
+    
+    List<AREXMocker> replayMockerList = replayMockers.stream()
+        .map(mockerRecordConverter::toMocker)
+        .filter(m -> m != null)
+        .collect(Collectors.toList());
+    
+    // Group by category and build comparison holders
+    return buildFromMockers(recordMockerList, replayMockerList);
+  }
+
+  private List<CategoryComparisonHolder> buildFromMockers(
+      List<AREXMocker> recordMockers, List<AREXMocker> replayMockers) {
+    
+    // Group by category
+    java.util.Map<String, List<AREXMocker>> recordByCategory = recordMockers.stream()
+        .collect(Collectors.groupingBy(m -> m.getCategoryType().getName()));
+    
+    java.util.Map<String, List<AREXMocker>> replayByCategory = replayMockers.stream()
+        .collect(Collectors.groupingBy(m -> m.getCategoryType().getName()));
+    
+    List<CategoryComparisonHolder> result = new ArrayList<>();
+    
+    // Process all categories from record
+    for (java.util.Map.Entry<String, List<AREXMocker>> entry : recordByCategory.entrySet()) {
+      String categoryName = entry.getKey();
+      MockCategoryType categoryType = com.arextest.model.mock.MockCategoryType.createEntryPoint(categoryName);
+      
+      // Skip non-comparable categories (except Q_MESSAGE_CONSUMER)
+      if (categoryType.isSkipComparison() && 
+          !MockCategoryType.Q_MESSAGE_CONSUMER.getName().equalsIgnoreCase(categoryName)) {
+        continue;
+      }
+      
+      List<AREXMocker> recordList = entry.getValue();
+      List<AREXMocker> replayList = replayByCategory.getOrDefault(categoryName, Collections.emptyList());
+      
+      // For entry point categories, both sides must have data
+      if (categoryType.isEntryPoint() && 
+          (CollectionUtils.isEmpty(recordList) || CollectionUtils.isEmpty(replayList))) {
+        LOGGER.warn("Entry point category {} has missing data: recordSize={}, replaySize={}",
+            categoryName, recordList.size(), replayList.size());
+        return Collections.emptyList();
+      }
+      
+      CategoryComparisonHolder holder = new CategoryComparisonHolder();
+      holder.setCategoryName(categoryName);
+      
+      List<CompareItem> recordItems = recordList.stream()
+          .map(prepareCompareItemBuilder::build)
+          .filter(item -> item != null)
+          .collect(Collectors.toList());
+      
+      List<CompareItem> replayItems = replayList.stream()
+          .map(prepareCompareItemBuilder::build)
+          .filter(item -> item != null)
+          .collect(Collectors.toList());
+      
+      holder.setRecord(recordItems);
+      holder.setReplayResult(replayItems);
+      holder.setNeedMatch(true);
+      result.add(holder);
+    }
+    
+    // Add categories that only exist in replay (new calls)
+    for (java.util.Map.Entry<String, List<AREXMocker>> entry : replayByCategory.entrySet()) {
+      String categoryName = entry.getKey();
+      if (!recordByCategory.containsKey(categoryName)) {
+        MockCategoryType categoryType = com.arextest.model.mock.MockCategoryType.createEntryPoint(categoryName);
+        if (categoryType.isSkipComparison() && 
+            !MockCategoryType.Q_MESSAGE_CONSUMER.getName().equalsIgnoreCase(categoryName)) {
+          continue;
+        }
+        
+        CategoryComparisonHolder holder = new CategoryComparisonHolder();
+        holder.setCategoryName(categoryName);
+        holder.setRecord(Collections.emptyList());
+        
+        List<CompareItem> replayItems = entry.getValue().stream()
+            .map(prepareCompareItemBuilder::build)
+            .filter(item -> item != null)
+            .collect(Collectors.toList());
+        
+        holder.setReplayResult(replayItems);
+        holder.setNeedMatch(true);
+        result.add(holder);
+      }
+    }
+    
+    return result;
   }
 
   /**

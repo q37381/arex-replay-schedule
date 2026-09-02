@@ -9,7 +9,7 @@ import com.arextest.schedule.comparer.impl.CompareServiceImpl;
 import com.arextest.schedule.comparer.impl.DefaultCustomComparisonConfigurationHandler;
 import com.arextest.schedule.comparer.impl.DefaultReplayResultComparer;
 import com.arextest.schedule.comparer.impl.PrepareCompareSourceRemoteLoader;
-import com.arextest.schedule.dao.mongodb.ReplayActionCaseItemRepository;
+import com.arextest.schedule.dao.ReplayActionCaseItemRepository;
 import com.arextest.schedule.progress.ProgressTracer;
 import com.arextest.schedule.service.MetricService;
 import lombok.extern.slf4j.Slf4j;

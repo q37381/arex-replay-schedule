@@ -1,6 +1,6 @@
 package com.arextest.schedule.dao.mongodb;
 
-import com.arextest.schedule.dao.RepositoryWriter;
+import com.arextest.schedule.dao.ReplayPlanActionRepository;
 import com.arextest.schedule.dao.mongodb.util.MongoHelper;
 import com.arextest.schedule.model.ReplayActionItem;
 import com.arextest.schedule.model.converter.ReplayPlanItemConverter;
@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.mongodb.core.BulkOperations;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -21,11 +22,15 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Repository;
 
 /**
+ * Mongo implementation of {@link ReplayPlanActionRepository}, active when
+ * arex.schedule.repository.type=mongodb.
+ * <p>
  * Created by rchen9 on 2022/8/19.
  */
 @Repository
 @Slf4j
-public class ReplayPlanActionRepository implements RepositoryWriter<ReplayActionItem>,
+@ConditionalOnProperty(name = "arex.schedule.repository.type", havingValue = "mongodb")
+public class ReplayPlanActionMongoRepository implements ReplayPlanActionRepository,
     RepositoryField {
 
   private static final String REPLAY_STATUS = "replayStatus";
@@ -68,6 +73,7 @@ public class ReplayPlanActionRepository implements RepositoryWriter<ReplayAction
     return true;
   }
 
+  @Override
   public boolean update(ReplayActionItem actionItem) {
     Query query = Query.query(Criteria.where(DASH_ID).is(actionItem.getId()));
     Update update = MongoHelper.getUpdate();
@@ -80,6 +86,7 @@ public class ReplayPlanActionRepository implements RepositoryWriter<ReplayAction
     return updateResult.getModifiedCount() > 0;
   }
 
+  @Override
   public List<ReplayActionItem> queryPlanActionList(String planId) {
     Query query = Query.query(Criteria.where(PLAN_ID).is(planId));
     List<ReplayPlanItemCollection> replayPlanItemCollections =
@@ -88,6 +95,7 @@ public class ReplayPlanActionRepository implements RepositoryWriter<ReplayAction
         .collect(Collectors.toList());
   }
 
+  @Override
   public boolean updateNoiseOfContextFinished(String id, String contextName, int count) {
     Query query = Query.query(Criteria.where(DASH_ID).is(id));
     Update update = new Update()
@@ -98,6 +106,7 @@ public class ReplayPlanActionRepository implements RepositoryWriter<ReplayAction
     return updateResult.getModifiedCount() > 0;
   }
 
+  @Override
   public boolean bulkUpdateNoiseFinishedContexts(List<ReplayActionItem> actionItems) {
     if (CollectionUtils.isEmpty(actionItems)) {
       return true;

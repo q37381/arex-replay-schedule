@@ -8,10 +8,11 @@ import com.arextest.common.jwt.JWTServiceImpl;
 import com.arextest.schedule.aspect.AppAuthAspectExecutor;
 import com.arextest.schedule.comparer.ReplayResultComparer;
 import com.arextest.schedule.comparer.impl.PrepareCompareSourceRemoteLoader;
-import com.arextest.schedule.dao.mongodb.ApplicationRepository;
-import com.arextest.schedule.dao.mongodb.ReplayCompareResultRepositoryImpl;
-import com.arextest.schedule.dao.mongodb.ReplayNoiseRepository;
-import com.arextest.schedule.dao.mongodb.ReplayPlanActionRepository;
+import com.arextest.schedule.dao.ApplicationRepository;
+import com.arextest.schedule.dao.ReplayCompareResultRepository;
+import com.arextest.schedule.dao.ReplayNoiseRepository;
+import com.arextest.schedule.dao.ReplayPlanActionRepository;
+import com.arextest.schedule.dao.SystemConfigurationRepository;
 import com.arextest.schedule.sender.ReplaySenderFactory;
 import com.arextest.schedule.service.noise.ReplayNoiseIdentify;
 import com.arextest.schedule.service.noise.ReplayNoiseIdentifyService;
@@ -21,7 +22,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
-import org.springframework.data.mongodb.core.MongoTemplate;
 
 @Configuration
 public class ServiceAutoConfiguration {
@@ -36,7 +36,7 @@ public class ServiceAutoConfiguration {
   @ConditionalOnMissingBean(ReplayNoiseIdentify.class)
   public ReplayNoiseIdentify replayNoiseIdentify(
       ReplayResultComparer replayResultComparer,
-      ReplayCompareResultRepositoryImpl replayCompareResultRepository,
+      ReplayCompareResultRepository replayCompareResultRepository,
       ReplayNoiseRepository replayNoiseRepository,
       ReplayPlanActionRepository replayPlanActionRepository,
       ReplaySenderFactory replaySenderFactory,
@@ -52,8 +52,9 @@ public class ServiceAutoConfiguration {
   @Bean
   @ConditionalOnMissingBean(AppAuthAspectExecutor.class)
   public AppAuthAspectExecutor appAuthAspectExecutor(ApplicationRepository applicationRepository,
-      MongoTemplate mongoTemplate, JWTService jwtService) {
-    return new AppAuthAspectExecutor(applicationRepository, mongoTemplate, jwtService);
+      SystemConfigurationRepository systemConfigurationRepository, JWTService jwtService) {
+    return new AppAuthAspectExecutor(applicationRepository, systemConfigurationRepository,
+        jwtService);
   }
 
   @Bean

@@ -1,0 +1,130 @@
+package com.arextest.schedule.dao.mysql;
+
+import com.arextest.schedule.dao.ReplayBizLogRepository;
+import com.arextest.schedule.model.bizlog.BizLog;
+import com.arextest.schedule.model.bizlog.ReplayBizLogQueryCondition;
+import com.arextest.schedule.model.converter.ReplayBizLogConverter;
+import com.arextest.schedule.model.dao.mongodb.ReplayBizLogCollection;
+import java.util.Collection;
+import java.util.List;
+import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import org.apache.commons.collections4.ListUtils;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.stereotype.Repository;
+import org.springframework.util.CollectionUtils;
+
+/**
+ * Mysql implementation of {@link ReplayBizLogRepository}, active when
+ * arex.schedule.repository.type=mysql (the default).
+ *
+ * Query results are converted back into the shared ReplayBizLogCollection
+ * POJO so callers (PlanBizLogService) stay unchanged between backends.
+ */
+@Repository
+@RequiredArgsConstructor
+@ConditionalOnProperty(name = "arex.schedule.repository.type", havingValue = "mysql",
+    matchIfMissing = true)
+public class ReplayBizLogMysqlRepository implements ReplayBizLogRepository {
+
+  private static final int INSERT_BATCH_SIZE = 500;
+
+  private final ReplayBizLogMapper replayBizLogMapper;
+
+  @Override
+  public void saveAll(Collection<BizLog> logs) {
+    if (CollectionUtils.isEmpty(logs)) {
+      return;
+    }
+    List<ReplayBizLogEntity> entities = logs.stream()
+        .map(ReplayBizLogConverter.INSTANCE::daoFromDto)
+        .map(ReplayBizLogMysqlRepository::toEntity)
+        .peek(entity -> entity.setId(MysqlJsonSupport.newId()))
+        .collect(Collectors.toList());
+    // chunked to stay under max_allowed_packet with MEDIUMTEXT request/response
+    for (List<ReplayBizLogEntity> chunk : ListUtils.partition(entities, INSERT_BATCH_SIZE)) {
+      replayBizLogMapper.batchInsert(chunk);
+    }
+  }
+
+  @Override
+  public List<ReplayBizLogCollection> queryByPlanId(String planId) {
+    return replayBizLogMapper.query(planId, null, null, null, null, null, null).stream()
+        .map(ReplayBizLogMysqlRepository::toCollection)
+        .collect(Collectors.toList());
+  }
+
+  @Override
+  public List<ReplayBizLogCollection> queryByPlanId(String planId,
+      ReplayBizLogQueryCondition condition) {
+    if (condition == null) {
+      return queryByPlanId(planId);
+    }
+    return replayBizLogMapper.query(planId, condition.getLevels(), condition.getTypes(),
+            condition.getActionItems(), condition.getResumedExecution(),
+            (condition.getPageNum() - 1) * condition.getPageSize(), condition.getPageSize())
+        .stream()
+        .map(ReplayBizLogMysqlRepository::toCollection)
+        .collect(Collectors.toList());
+  }
+
+  @Override
+  public long countByPlanId(String planId, ReplayBizLogQueryCondition condition) {
+    if (condition == null) {
+      return replayBizLogMapper.count(planId, null, null, null, null);
+    }
+    return replayBizLogMapper.count(planId, condition.getLevels(), condition.getTypes(),
+        condition.getActionItems(), condition.getResumedExecution());
+  }
+
+  private static ReplayBizLogEntity toEntity(ReplayBizLogCollection collection) {
+    ReplayBizLogEntity entity = new ReplayBizLogEntity();
+    entity.setId(collection.getId());
+    entity.setLogDate(MysqlJsonSupport.toMillis(collection.getDate()));
+    entity.setLogLevel(collection.getLevel());
+    entity.setMessage(collection.getMessage());
+    entity.setLogType(collection.getLogType());
+    entity.setPlanId(collection.getPlanId());
+    entity.setResumedExecution(collection.isResumedExecution());
+    entity.setContextName(collection.getContextName());
+    entity.setContextIdentifier(collection.getContextIdentifier());
+    entity.setCaseItemId(collection.getCaseItemId());
+    entity.setActionItemId(collection.getActionItemId());
+    entity.setOperationName(collection.getOperationName());
+    entity.setException(collection.getException());
+    entity.setRequest(collection.getRequest());
+    entity.setResponse(collection.getResponse());
+    entity.setTraceId(collection.getTraceId());
+    entity.setExtra(collection.getExtra());
+    entity.setReRun(collection.getReRun());
+    entity.setDataChangeCreateTime(collection.getDataChangeCreateTime());
+    entity.setDataChangeUpdateTime(collection.getDataChangeUpdateTime());
+    return entity;
+  }
+
+  private static ReplayBizLogCollection toCollection(ReplayBizLogEntity entity) {
+    ReplayBizLogCollection collection = new ReplayBizLogCollection();
+    collection.setId(entity.getId());
+    collection.setDate(MysqlJsonSupport.toDate(entity.getLogDate()));
+    collection.setLevel(entity.getLogLevel() == null ? 0 : entity.getLogLevel());
+    collection.setMessage(entity.getMessage());
+    collection.setLogType(entity.getLogType() == null ? 0 : entity.getLogType());
+    collection.setPlanId(entity.getPlanId());
+    collection.setResumedExecution(
+        entity.getResumedExecution() != null && entity.getResumedExecution());
+    collection.setContextName(entity.getContextName());
+    collection.setContextIdentifier(entity.getContextIdentifier());
+    collection.setCaseItemId(entity.getCaseItemId());
+    collection.setActionItemId(entity.getActionItemId());
+    collection.setOperationName(entity.getOperationName());
+    collection.setException(entity.getException());
+    collection.setRequest(entity.getRequest());
+    collection.setResponse(entity.getResponse());
+    collection.setTraceId(entity.getTraceId());
+    collection.setExtra(entity.getExtra());
+    collection.setReRun(entity.getReRun());
+    collection.setDataChangeCreateTime(entity.getDataChangeCreateTime());
+    collection.setDataChangeUpdateTime(entity.getDataChangeUpdateTime());
+    return collection;
+  }
+}

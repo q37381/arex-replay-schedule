@@ -1,7 +1,8 @@
 package com.arextest.schedule.dao.mongodb;
 
 import com.arextest.model.replay.CaseStatusEnum;
-import com.arextest.schedule.dao.RepositoryWriter;
+import com.arextest.schedule.dao.CaseQueryCondition;
+import com.arextest.schedule.dao.ReplayActionCaseItemRepository;
 import com.arextest.schedule.dao.mongodb.util.MongoHelper;
 import com.arextest.schedule.model.CaseSendStatusType;
 import com.arextest.schedule.model.CompareProcessStatusType;
@@ -20,11 +21,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.annotation.Id;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.BulkOperations;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -38,11 +38,15 @@ import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
 /**
+ * Mongo implementation of {@link ReplayActionCaseItemRepository}, active when
+ * arex.schedule.repository.type=mongodb.
+ * <p>
  * Created by rchen9 on 2022/8/19.
  */
 @Repository
 @Slf4j
-public class ReplayActionCaseItemRepository implements RepositoryWriter<ReplayActionCaseItem>,
+@ConditionalOnProperty(name = "arex.schedule.repository.type", havingValue = "mongodb")
+public class ReplayActionCaseItemMongoRepository implements ReplayActionCaseItemRepository,
     RepositoryField {
 
   private static final String PLAN_ITEM_ID = "planItemId";
@@ -92,23 +96,36 @@ public class ReplayActionCaseItemRepository implements RepositoryWriter<ReplayAc
   }
 
   /**
-   * @return case list that need to be sent Case order is hard-coded to be ascending by record time.
-   *
-   * The case order is to control the order of extra mockers yields during the replay phase, please
-   * make sure you discuss with agent team before changing the order.
-   * todo make order configurable
+   * Translates the storage-agnostic condition into mongo criteria.
    */
+  private static List<Criteria> toCriteria(CaseQueryCondition condition) {
+    List<Criteria> criteriaList = new ArrayList<>();
+    if (condition == null) {
+      return criteriaList;
+    }
+    if (condition.isNullContextIdentifier()) {
+      criteriaList.add(Criteria.where(Fields.CONTEXT_IDENTIFIER).isNull());
+    } else if (condition.getContextIdentifier() != null) {
+      criteriaList.add(Criteria.where(Fields.CONTEXT_IDENTIFIER).is(condition.getContextIdentifier()));
+    }
+    if (CollectionUtils.isNotEmpty(condition.getPlanItemIds())) {
+      criteriaList.add(Criteria.where(Fields.PLAN_ITEM_ID).in(condition.getPlanItemIds()));
+    }
+    return criteriaList;
+  }
+
+  @Override
   public List<ReplayActionCaseItem> waitingSendList(String planId, int pageSize,
-      List<Criteria> baseCriteria, Long minRecordTime) {
+      CaseQueryCondition condition, Long minRecordTime) {
     Query query = new Query();
 
-    Optional.ofNullable(baseCriteria).ifPresent(criteria -> criteria.forEach(query::addCriteria));
+    toCriteria(condition).forEach(query::addCriteria);
 
-    query.addCriteria(Criteria.where(ReplayActionCaseItem.Fields.PLAN_ID).is(planId));
+    query.addCriteria(Criteria.where(Fields.PLAN_ID).is(planId));
     query.addCriteria(new Criteria().orOperator(
-        Criteria.where(ReplayActionCaseItem.Fields.SEND_STATUS)
+        Criteria.where(Fields.SEND_STATUS)
             .is(CaseSendStatusType.WAIT_HANDLING.getValue()),
-        Criteria.where(ReplayActionCaseItem.Fields.COMPARE_STATUS)
+        Criteria.where(Fields.COMPARE_STATUS)
             .is(CompareProcessStatusType.WAIT_HANDLING.getValue())
     ));
     if (minRecordTime != null) {
@@ -127,28 +144,29 @@ public class ReplayActionCaseItemRepository implements RepositoryWriter<ReplayAc
   /**
    * Get the case list that failed to send or compare.
    */
+  @Override
   public List<ReplayActionCaseItem> failedCaseList(String planId, String planItemId) {
     Query query = new Query();
-    query.addCriteria(Criteria.where(ReplayActionCaseItem.Fields.PLAN_ID).is(planId));
+    query.addCriteria(Criteria.where(Fields.PLAN_ID).is(planId));
     if (StringUtils.hasText(planItemId)) {
-      query.addCriteria(Criteria.where(ReplayActionCaseItem.Fields.PLAN_ITEM_ID).is(planItemId));
+      query.addCriteria(Criteria.where(Fields.PLAN_ITEM_ID).is(planItemId));
     }
 
     query.addCriteria(new Criteria().andOperator(
         new Criteria().orOperator(
-            Criteria.where(ReplayActionCaseItem.Fields.SEND_STATUS)
+            Criteria.where(Fields.SEND_STATUS)
                 .ne(CaseSendStatusType.SUCCESS.getValue()),
-            Criteria.where(ReplayActionCaseItem.Fields.COMPARE_STATUS)
+            Criteria.where(Fields.COMPARE_STATUS)
                 .ne(CompareProcessStatusType.PASS.getValue())),
         // exclude expired cases
         new Criteria().orOperator(
-            Criteria.where(ReplayActionCaseItem.Fields.EXPIRATION_TIME).isNull(),
-            Criteria.where(ReplayActionCaseItem.Fields.EXPIRATION_TIME)
+            Criteria.where(Fields.EXPIRATION_TIME).isNull(),
+            Criteria.where(Fields.EXPIRATION_TIME)
                 .gt(System.currentTimeMillis())))
     );
 
 
-    query.addCriteria(Criteria.where(ReplayActionCaseItem.Fields.CASE_STATUS)
+    query.addCriteria(Criteria.where(Fields.CASE_STATUS)
         .is(CaseStatusEnum.NORMAL.getCode()));
 
     List<ReplayRunDetailsCollection> replayRunDetailsCollections = mongoTemplate.find(query,
@@ -157,17 +175,29 @@ public class ReplayActionCaseItemRepository implements RepositoryWriter<ReplayAc
         .collect(Collectors.toList());
   }
 
-  public Map<String, Long> countWaitHandlingByAction(String planId, List<Criteria> baseCriteria) {
-    // combine baseCriteria into one
-    Criteria combinedCriteria = new Criteria().andOperator(baseCriteria.toArray(new Criteria[0]));
+  @Override
+  public Map<String, Long> countWaitHandlingByAction(String planId, CaseQueryCondition condition) {
+    List<Criteria> baseCriteria = toCriteria(condition);
 
-    Aggregation aggregation = Aggregation.newAggregation(
-        Aggregation.match(combinedCriteria),
-        Aggregation.match(Criteria.where(ReplayActionCaseItem.Fields.PLAN_ID).is(planId)),
-        Aggregation.match(Criteria.where(ReplayActionCaseItem.Fields.SEND_STATUS)
-            .is(CaseSendStatusType.WAIT_HANDLING.getValue())),
-        Aggregation.group(ReplayActionCaseItem.Fields.PLAN_ITEM_ID).count().as(COUNT_FIELD)
-    );
+    Aggregation aggregation;
+    if (CollectionUtils.isNotEmpty(baseCriteria)) {
+      // combine baseCriteria into one
+      Criteria combinedCriteria = new Criteria().andOperator(baseCriteria.toArray(new Criteria[0]));
+      aggregation = Aggregation.newAggregation(
+          Aggregation.match(combinedCriteria),
+          Aggregation.match(Criteria.where(Fields.PLAN_ID).is(planId)),
+          Aggregation.match(Criteria.where(Fields.SEND_STATUS)
+              .is(CaseSendStatusType.WAIT_HANDLING.getValue())),
+          Aggregation.group(Fields.PLAN_ITEM_ID).count().as(COUNT_FIELD)
+      );
+    } else {
+      aggregation = Aggregation.newAggregation(
+          Aggregation.match(Criteria.where(Fields.PLAN_ID).is(planId)),
+          Aggregation.match(Criteria.where(Fields.SEND_STATUS)
+              .is(CaseSendStatusType.WAIT_HANDLING.getValue())),
+          Aggregation.group(Fields.PLAN_ITEM_ID).count().as(COUNT_FIELD)
+      );
+    }
     List<GroupCountRes> aggRes = mongoTemplate.aggregate(aggregation,
         ReplayRunDetailsCollection.class, GroupCountRes.class).getMappedResults();
     Map<String, Long> res = new HashMap<>();
@@ -177,6 +207,7 @@ public class ReplayActionCaseItemRepository implements RepositoryWriter<ReplayAc
     return res;
   }
 
+  @Override
   public boolean updateSendResult(ReplayActionCaseItem replayActionCaseItem) {
     Query query = Query.query(Criteria.where(DASH_ID).is(replayActionCaseItem.getId()));
     Update update = MongoHelper.getUpdate();
@@ -190,6 +221,7 @@ public class ReplayActionCaseItemRepository implements RepositoryWriter<ReplayAc
     return updateResult.getModifiedCount() > 0;
   }
 
+  @Override
   public boolean updateCompareStatus(String id, int comparedStatus) {
     Query query = Query.query(Criteria.where(DASH_ID).is(id));
     Update update = MongoHelper.getUpdate();
@@ -199,6 +231,7 @@ public class ReplayActionCaseItemRepository implements RepositoryWriter<ReplayAc
     return updateResult.getModifiedCount() > 0;
   }
 
+  @Override
   public void batchUpdateStatus(List<ReplayActionCaseItem> replayActionCaseItemList) {
     if (CollectionUtils.isEmpty(replayActionCaseItemList)) {
       return;
@@ -221,6 +254,7 @@ public class ReplayActionCaseItemRepository implements RepositoryWriter<ReplayAc
    * @param planItemId
    * @return
    */
+  @Override
   public List<GroupCountRes> getLastRecord(String planItemId) {
     Criteria criteria = Criteria.where(PLAN_ITEM_ID).is(planItemId);
     Aggregation aggregation = Aggregation.newAggregation(
@@ -238,52 +272,57 @@ public class ReplayActionCaseItemRepository implements RepositoryWriter<ReplayAc
   }
 
   // region <context>
+  @Override
   public Set<String> getAllContextIdentifiers(String planId) {
-    Query query = Query.query(Criteria.where(ReplayActionCaseItem.Fields.PLAN_ID).is(planId));
+    Query query = Query.query(Criteria.where(Fields.PLAN_ID).is(planId));
     // exclude success case, no affection on the first replay
     query.addCriteria(new Criteria().orOperator(
-        Criteria.where(ReplayActionCaseItem.Fields.SEND_STATUS)
+        Criteria.where(Fields.SEND_STATUS)
             .ne(CaseSendStatusType.SUCCESS.getValue()),
-        Criteria.where(ReplayActionCaseItem.Fields.COMPARE_STATUS)
+        Criteria.where(Fields.COMPARE_STATUS)
             .ne(CompareProcessStatusType.PASS.getValue())
     ));
     return new HashSet<>(
-        mongoTemplate.findDistinct(query, ReplayActionCaseItem.Fields.CONTEXT_IDENTIFIER,
+        mongoTemplate.findDistinct(query, Fields.CONTEXT_IDENTIFIER,
             ReplayRunDetailsCollection.class, String.class));
   }
 
+  @Override
   public boolean hasNullIdentifier(String planId) {
-    Query query = Query.query(Criteria.where(ReplayActionCaseItem.Fields.PLAN_ID).is(planId));
+    Query query = Query.query(Criteria.where(Fields.PLAN_ID).is(planId));
     // exclude success case, no affection on the first replay
     query.addCriteria(new Criteria().orOperator(
-        Criteria.where(ReplayActionCaseItem.Fields.SEND_STATUS)
+        Criteria.where(Fields.SEND_STATUS)
             .ne(CaseSendStatusType.SUCCESS.getValue()),
-        Criteria.where(ReplayActionCaseItem.Fields.COMPARE_STATUS)
+        Criteria.where(Fields.COMPARE_STATUS)
             .ne(CompareProcessStatusType.PASS.getValue())
     ));
-    query.addCriteria(Criteria.where(ReplayActionCaseItem.Fields.CONTEXT_IDENTIFIER).isNull());
+    query.addCriteria(Criteria.where(Fields.CONTEXT_IDENTIFIER).isNull());
     return mongoTemplate.exists(query, ReplayRunDetailsCollection.class);
   }
 
   // get one mocker of the given context
+  @Override
   public ReplayActionCaseItem getOneOfContext(String planId, String contextIdentifier) {
-    Query query = Query.query(Criteria.where(ReplayActionCaseItem.Fields.PLAN_ID).is(planId));
+    Query query = Query.query(Criteria.where(Fields.PLAN_ID).is(planId));
     query.addCriteria(
-        Criteria.where(ReplayActionCaseItem.Fields.CONTEXT_IDENTIFIER).is(contextIdentifier));
+        Criteria.where(Fields.CONTEXT_IDENTIFIER).is(contextIdentifier));
     ReplayRunDetailsCollection replayRunDetailsCollection = mongoTemplate.findOne(query,
         ReplayRunDetailsCollection.class);
     return converter.dtoFromDao(replayRunDetailsCollection);
   }
 
+  @Override
   public ReplayActionCaseItem queryById(String caseId) {
-    Query query = Query.query(Criteria.where(ReplayActionCaseItem.Fields.ID).is(caseId));
+    Query query = Query.query(Criteria.where(Fields.ID).is(caseId));
     ReplayRunDetailsCollection replayRunDetailsCollection = mongoTemplate.findOne(query,
         ReplayRunDetailsCollection.class);
     return converter.dtoFromDao(replayRunDetailsCollection);
   }
 
+  @Override
   public List<ReplayActionCaseItem> batchQueryById(List<String> caseIdList) {
-    Query query = Query.query(Criteria.where(ReplayActionCaseItem.Fields.ID).in(caseIdList));
+    Query query = Query.query(Criteria.where(Fields.ID).in(caseIdList));
     List<ReplayRunDetailsCollection> replayRunDetailsCollections = mongoTemplate.find(query,
         ReplayRunDetailsCollection.class);
     return replayRunDetailsCollections.stream()
@@ -291,31 +330,24 @@ public class ReplayActionCaseItemRepository implements RepositoryWriter<ReplayAc
         .collect(Collectors.toList());
   }
 
+  @Override
   public boolean deleteExcludedCases(String planId, List<String> planItemIds) {
     if (CollectionUtils.isEmpty(planItemIds)) {
       return false;
     }
-    Query query = Query.query(Criteria.where(ReplayActionCaseItem.Fields.PLAN_ID).is(planId));
+    Query query = Query.query(Criteria.where(Fields.PLAN_ID).is(planId));
     query.addCriteria(Criteria.where(Fields.PLAN_ITEM_ID).in(planItemIds));
     DeleteResult deleteResult = mongoTemplate.remove(query, ReplayRunDetailsCollection.class);
     return deleteResult.getDeletedCount() > 0;
   }
 
+  @Override
   public long updateCaseStatus(String recordId, Integer caseStatus) {
     Query query = Query.query(Criteria.where(ReplayRunDetailsCollection.Fields.RECORD_ID).is(recordId));
     Update update = MongoHelper.getUpdate();
     update.set(ReplayRunDetailsCollection.Fields.CASE_STATUS, caseStatus);
     return mongoTemplate.updateMulti(query,
         update, ReplayRunDetailsCollection.class).getModifiedCount();
-  }
-
-  @Data
-  public static class GroupCountRes {
-    @Id
-    private String planItemId;
-    private Long count;
-    private Long lastRecordTime;
-    private String caseType;
   }
 
   // endregion <context>

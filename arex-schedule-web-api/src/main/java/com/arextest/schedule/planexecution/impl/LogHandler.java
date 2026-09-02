@@ -1,6 +1,6 @@
 package com.arextest.schedule.planexecution.impl;
 
-import com.arextest.schedule.dao.mongodb.ReplayBizLogRepository;
+import com.arextest.schedule.dao.ReplayBizLogRepository;
 import com.arextest.schedule.model.ReplayPlan;
 import com.arextest.schedule.model.bizlog.BizLog;
 import com.arextest.schedule.planexecution.PlanMonitorHandler;

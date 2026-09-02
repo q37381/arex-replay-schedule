@@ -48,6 +48,17 @@
       <artifactId>spring-boot-starter-data-mongodb</artifactId>
       <groupId>org.springframework.boot</groupId>
     </dependency>
+    <!-- mysql + mybatis: relational storage backend for schedule data -->
+    <dependency>
+      <artifactId>mysql-connector-j</artifactId>
+      <groupId>com.mysql</groupId>
+      <version>8.0.33</version>
+    </dependency>
+    <dependency>
+      <artifactId>mybatis-spring-boot-starter</artifactId>
+      <groupId>org.mybatis.spring.boot</groupId>
+      <version>3.0.3</version>
+    </dependency>
     <dependency>
       <artifactId>arex-model</artifactId>
       <groupId>com.arextest</groupId>

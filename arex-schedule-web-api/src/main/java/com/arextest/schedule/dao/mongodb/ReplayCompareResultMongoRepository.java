@@ -1,6 +1,6 @@
 package com.arextest.schedule.dao.mongodb;
 
-import com.arextest.schedule.dao.RepositoryWriter;
+import com.arextest.schedule.dao.ReplayCompareResultRepository;
 import com.arextest.schedule.model.ReplayCompareResult;
 import com.arextest.schedule.model.converter.ReplayCompareResultConverter;
 import com.arextest.schedule.model.dao.mongodb.ReplayCompareResultCollection;
@@ -8,14 +8,20 @@ import jakarta.annotation.Resource;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Component;
 
+/**
+ * Mongo implementation of {@link ReplayCompareResultRepository}, active when
+ * arex.schedule.repository.type=mongodb.
+ */
 @Slf4j
 @Component
-public class ReplayCompareResultRepositoryImpl implements RepositoryWriter<ReplayCompareResult>,
+@ConditionalOnProperty(name = "arex.schedule.repository.type", havingValue = "mongodb")
+public class ReplayCompareResultMongoRepository implements ReplayCompareResultRepository,
     RepositoryField {
 
   @Resource
@@ -40,6 +46,7 @@ public class ReplayCompareResultRepositoryImpl implements RepositoryWriter<Repla
     return true;
   }
 
+  @Override
   public boolean deleteByRecord(String recordId, String planItemId) {
     Query query = new Query();
     query.addCriteria(Criteria.where(ReplayCompareResult.Fields.RECORD_ID).is(recordId)
@@ -47,6 +54,7 @@ public class ReplayCompareResultRepositoryImpl implements RepositoryWriter<Repla
     return mongoTemplate.remove(query, ReplayCompareResultCollection.class).getDeletedCount() > 0;
   }
 
+  @Override
   public ReplayCompareResult queryCompareResultsById(String objectId) {
     Query query = new Query();
     query.addCriteria(Criteria.where(DASH_ID).is(objectId));

@@ -8,7 +8,7 @@ import com.arextest.diff.sdk.CompareSDK;
 import com.arextest.model.mock.MockCategoryType;
 import com.arextest.schedule.client.HttpWepServiceApiClient;
 import com.arextest.schedule.comparer.ComparisonWriter;
-import com.arextest.schedule.dao.mongodb.ReplayCompareResultRepositoryImpl;
+import com.arextest.schedule.dao.ReplayCompareResultRepository;
 import com.arextest.schedule.model.ReplayActionCaseItem;
 import com.arextest.schedule.model.ReplayActionItem;
 import com.arextest.schedule.model.ReplayCompareResult;
@@ -46,7 +46,7 @@ public final class ReplayReportService implements ComparisonWriter {
 
   private static final String CASE_COUNT_LIMIT_NAME = "caseCountLimit";
   @Resource
-  private ReplayCompareResultRepositoryImpl replayCompareResultRepository;
+  private ReplayCompareResultRepository replayCompareResultRepository;
   @Resource
   private ReplayCompareResultConverter converter;
   @Resource

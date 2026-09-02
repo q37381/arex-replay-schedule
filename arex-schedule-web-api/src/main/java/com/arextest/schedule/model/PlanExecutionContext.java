@@ -1,9 +1,8 @@
 package com.arextest.schedule.model;
 
+import com.arextest.schedule.dao.CaseQueryCondition;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import java.util.List;
 import lombok.Data;
-import org.springframework.data.mongodb.core.query.Criteria;
 
 /**
  * Created by Qzmo on 2023/5/15
@@ -26,7 +25,7 @@ public class PlanExecutionContext<T> {
 
   // extra condition provide for case selecting before send
   @JsonIgnore
-  private List<Criteria> contextCaseQuery;
+  private CaseQueryCondition contextCaseCondition;
 
   @JsonIgnore
   private T dependencies;

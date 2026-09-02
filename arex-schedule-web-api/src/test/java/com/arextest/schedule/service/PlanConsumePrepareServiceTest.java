@@ -5,7 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.arextest.common.config.DefaultApplicationConfig;
-import com.arextest.schedule.dao.mongodb.ReplayActionCaseItemRepository;
+import com.arextest.schedule.dao.ReplayActionCaseItemRepository;
 import com.arextest.schedule.model.CaseProviderEnum;
 import com.arextest.schedule.model.OperationTypeData;
 import com.arextest.schedule.model.ReplayActionCaseItem;

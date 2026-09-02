@@ -5,7 +5,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import com.arextest.common.config.DefaultApplicationConfig;
 import com.arextest.schedule.comparer.ComparisonWriter;
-import com.arextest.schedule.dao.mongodb.ReplayActionCaseItemRepository;
+import com.arextest.schedule.dao.ReplayActionCaseItemRepository;
 import com.arextest.schedule.model.CaseSendStatusType;
 import com.arextest.schedule.model.ReplayActionCaseItem;
 import com.arextest.schedule.model.ReplayActionItem;
