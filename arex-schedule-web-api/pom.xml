@@ -197,8 +197,11 @@
           </resource>
           <resource>
             <directory>src/main/resources</directory>
+            <!-- yaml must NOT be listed here: this second resource block is
+                 unfiltered, so listing yaml would overwrite the filtered copy
+                 above and leave ${project.version} unresolved in
+                 application.yaml (CheckHealthController reads it). -->
             <includes>
-              <include>**/*.yaml</include>
               <include>**/*.jar</include>
             </includes>
           </resource>
@@ -226,8 +229,11 @@
           </resource>
           <resource>
             <directory>src/main/resources</directory>
+            <!-- yaml must NOT be listed here: this second resource block is
+                 unfiltered, so listing yaml would overwrite the filtered copy
+                 above and leave ${project.version} unresolved in
+                 application.yaml (CheckHealthController reads it). -->
             <includes>
-              <include>**/*.yaml</include>
               <include>**/*.jar</include>
             </includes>
           </resource>

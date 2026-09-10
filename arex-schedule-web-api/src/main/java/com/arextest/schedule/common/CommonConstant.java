@@ -29,6 +29,11 @@ public final class CommonConstant {
 
   public static final long CREATE_PLAN_REDIS_EXPIRE = TimeUnit.MINUTES.toSeconds(5);
   public static final long STOP_PLAN_REDIS_EXPIRE = TimeUnit.DAYS.toSeconds(1);
+  // CacheProvider TTL parameters are in SECONDS (the redis edition maps them to
+  // Jedis.setex). The *_MILLIS constants above are for date arithmetic only -
+  // passing them as a TTL made entries live ~1000x longer than intended.
+  public static final long ONE_HOUR_SECONDS = TimeUnit.HOURS.toSeconds(1);
+  public static final long ONE_DAY_SECONDS = TimeUnit.DAYS.toSeconds(1);
   public static final String STOP_PLAN_REDIS_KEY = "arex.stop.plan.";
   public static final String PLAN_RUNNING_KEY_FORMAT = "plan_running_%s";
   // endregion

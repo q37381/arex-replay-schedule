@@ -1,7 +1,7 @@
 package com.arextest.schedule.service;
 
 import static com.arextest.schedule.common.CommonConstant.CREATE_PLAN_REDIS_EXPIRE;
-import static com.arextest.schedule.common.CommonConstant.ONE_DAY_MILLIS;
+import static com.arextest.schedule.common.CommonConstant.ONE_DAY_SECONDS;
 import static com.arextest.schedule.common.CommonConstant.OPERATION_MAX_CASE_COUNT;
 import static com.arextest.schedule.common.CommonConstant.STOP_PLAN_REDIS_EXPIRE;
 
@@ -289,7 +289,7 @@ public class PlanProduceService {
       if (redisCacheProvider.get(key) != null) {
         return true;
       }
-      redisCacheProvider.put(key, ONE_DAY_MILLIS, value);
+      redisCacheProvider.put(key, ONE_DAY_SECONDS, value);
       return false;
     } catch (Exception e) {
       LOGGER.error("isRunning error : {}", e.getMessage(), e);

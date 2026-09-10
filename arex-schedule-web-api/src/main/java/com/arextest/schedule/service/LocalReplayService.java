@@ -251,7 +251,7 @@ public class LocalReplayService {
       }
       ReplayActionItemForCache replayActionItemForCache = transformForCache(replayActionItem);
       redisCacheProvider.put(buildReplayActionItemRedisKey(replayActionItemForCache.getId()),
-          CommonConstant.ONE_HOUR_MILLIS,
+          CommonConstant.ONE_HOUR_SECONDS,
           JsonUtils.objectToJsonString(replayActionItemForCache).getBytes(StandardCharsets.UTF_8));
     }
   }
@@ -259,7 +259,7 @@ public class LocalReplayService {
   private void cacheReplayPlan(ReplayPlan replayPlan) {
     ReplayPlanForCache replayPlanForCache = transformForCache(replayPlan);
     redisCacheProvider.put(buildReplayPlanRerunRedisKey(replayPlan.getId()),
-        CommonConstant.ONE_HOUR_MILLIS,
+        CommonConstant.ONE_HOUR_SECONDS,
         JsonUtils.objectToJsonString(replayPlanForCache).getBytes(StandardCharsets.UTF_8));
   }
 

@@ -1,6 +1,11 @@
 spring:
   application:
     name: Bootstrap Spring Boot
+  autoconfigure:
+    # redisson-spring-boot-starter auto-config unconditionally connects to
+    # localhost:6379 at startup; our own CacheProviderConfiguration wires the
+    # client only when arex.cache.provider=redis, so disable the starter here.
+    exclude: org.redisson.spring.starter.RedissonAutoConfigurationV2
   jackson:
     default-property-inclusion: non_null
     serialization:
@@ -16,6 +21,9 @@ mybatis:
   configuration:
     map-underscore-to-camel-case: true
 arex:
+  cache:
+    # cache/lock provider: local(in-process, single instance) | redis(shared, multi instance)
+    provider: ${AREX_CACHE_PROVIDER:local}
   api:
     config:
       addExclusion:
