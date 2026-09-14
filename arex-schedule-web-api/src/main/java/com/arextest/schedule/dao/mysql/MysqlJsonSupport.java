@@ -93,13 +93,4 @@ public final class MysqlJsonSupport {
       return (long) value.hashCode();
     }
   }
-
-  /**
-   * JSON path for a dynamic object key, escaping the characters that would
-   * break the $."key" path syntax.
-   */
-  public static String jsonObjectPath(String key) {
-    String escaped = key == null ? "" : key.replace("\\", "\\\\").replace("\"", "\\\"");
-    return "$\"" + escaped + "\"";
-  }
 }

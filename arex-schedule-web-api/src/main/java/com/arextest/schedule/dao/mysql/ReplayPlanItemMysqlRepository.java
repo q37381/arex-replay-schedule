@@ -5,14 +5,17 @@ import com.arextest.schedule.model.ReplayActionItem;
 import com.arextest.schedule.model.converter.ReplayPlanItemConverter;
 import com.arextest.schedule.model.dao.mongodb.ReplayPlanItemCollection;
 import com.fasterxml.jackson.core.type.TypeReference;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.dao.DeadlockLoserDataAccessException;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Mysql implementation of {@link ReplayPlanActionRepository}, active when
@@ -21,16 +24,30 @@ import org.springframework.stereotype.Repository;
  * Conversion chain mirrors the mongo edition: ReplayActionItem <->
  * ReplayPlanItemCollection (mapstruct) and ReplayPlanItemCollection <->
  * ReplayPlanItemEntity (storage bridging: Date -> epoch millis,
- * noiseFinishedContexts -> JSON column).
+ * noiseFinishedContexts -> JSON text column). The mongo $inc on
+ * noiseFinishedContexts.&lt;contextName&gt; is merged in Java inside a
+ * SELECT ... FOR UPDATE transaction (same pattern as ReplayNoiseMysqlRepository),
+ * so no MySQL JSON path function is used.
  */
 @Slf4j
 @Repository
-@RequiredArgsConstructor
 @ConditionalOnProperty(name = "arex.schedule.repository.type", havingValue = "mysql",
     matchIfMissing = true)
 public class ReplayPlanItemMysqlRepository implements ReplayPlanActionRepository {
 
+  private static final TypeReference<Map<String, Integer>> NOISE_CONTEXTS_TYPE =
+      new TypeReference<Map<String, Integer>>() {
+      };
+  private static final int MAX_LOCK_ATTEMPTS = 3;
+
   private final ReplayPlanItemMapper replayPlanItemMapper;
+  private final TransactionTemplate transactionTemplate;
+
+  public ReplayPlanItemMysqlRepository(ReplayPlanItemMapper replayPlanItemMapper,
+      PlatformTransactionManager transactionManager) {
+    this.replayPlanItemMapper = replayPlanItemMapper;
+    this.transactionTemplate = new TransactionTemplate(transactionManager);
+  }
 
   @Override
   public boolean save(ReplayActionItem actionItem) {
@@ -84,9 +101,30 @@ public class ReplayPlanItemMysqlRepository implements ReplayPlanActionRepository
 
   @Override
   public boolean updateNoiseOfContextFinished(String id, String contextName, int count) {
-    return replayPlanItemMapper.incNoiseFinishedContext(id,
-        MysqlJsonSupport.jsonObjectPath(contextName), count,
-        System.currentTimeMillis()) > 0;
+    for (int attempt = 0; attempt < MAX_LOCK_ATTEMPTS; attempt++) {
+      try {
+        Boolean updated = transactionTemplate.execute(status -> {
+          ReplayPlanItemEntity row = replayPlanItemMapper.selectNoiseForUpdate(id);
+          if (row == null) {
+            return false;
+          }
+          Map<String, Integer> read =
+              MysqlJsonSupport.readJson(row.getNoiseFinishedContexts(), NOISE_CONTEXTS_TYPE);
+          Map<String, Integer> contexts = read == null ? new HashMap<>() : read;
+          contexts.merge(contextName, count, Integer::sum);
+          return replayPlanItemMapper.updateNoiseFinishedContexts(id,
+              MysqlJsonSupport.writeJson(contexts), System.currentTimeMillis()) > 0;
+        });
+        return Boolean.TRUE.equals(updated);
+      } catch (DeadlockLoserDataAccessException e) {
+        if (attempt == MAX_LOCK_ATTEMPTS - 1) {
+          LOGGER.error("updateNoiseOfContextFinished deadlock, id: {}", id, e);
+          return false;
+        }
+        LOGGER.warn("noise finished contexts update deadlock, retry {}", attempt + 1);
+      }
+    }
+    return false;
   }
 
   @Override
@@ -133,9 +171,8 @@ public class ReplayPlanItemMysqlRepository implements ReplayPlanActionRepository
     collection.setPlanId(entity.getPlanId());
     collection.setReplayCaseCount(
         entity.getReplayCaseCount() == null ? 0 : entity.getReplayCaseCount());
-    collection.setNoiseFinishedContexts(MysqlJsonSupport.readJson(entity.getNoiseFinishedContexts(),
-        new TypeReference<Map<String, Integer>>() {
-        }));
+    collection.setNoiseFinishedContexts(
+        MysqlJsonSupport.readJson(entity.getNoiseFinishedContexts(), NOISE_CONTEXTS_TYPE));
     collection.setReplayStatus(entity.getReplayStatus() == null ? 0 : entity.getReplayStatus());
     collection.setReplayBeginTime(MysqlJsonSupport.toDate(entity.getReplayBeginTime()));
     collection.setReplayFinishTime(MysqlJsonSupport.toDate(entity.getReplayFinishTime()));

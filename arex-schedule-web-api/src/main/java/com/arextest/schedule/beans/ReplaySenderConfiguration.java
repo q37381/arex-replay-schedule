@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -32,6 +33,17 @@ import org.springframework.core.io.ClassPathResource;
 public class ReplaySenderConfiguration {
   @Value("${replay.sender.extension.jarPath}")
   private String jarFilePath;
+  /**
+   * Optional comma-separated list of extra jars (file path or http url) that
+   * are appended to the invoker class loader. Use it to plug in a custom Dubbo
+   * Protocol (or any SPI extension) that the replay consumer side needs but
+   * that is not bundled inside dubboInvoker.jar. Every extra jar shares the
+   * SAME class loader as Dubbo, so its classes can link against Dubbo and its
+   * META-INF/dubbo(/internal)/ SPI files are visible to Dubbo's ExtensionLoader
+   * (the thread context class loader is set to this loader while sending).
+   */
+  @Value("${replay.sender.extension.extraJarPaths:}")
+  private String extraJarPaths;
   private static final String LOCAL_INVOKER_PATH = "lib/dubboInvoker.jar";
   private static final String NEW_INVOKER_PATH = "dubboInvoker.jar";
 
@@ -39,16 +51,57 @@ public class ReplaySenderConfiguration {
   @ConditionalOnProperty(name = "replay.sender.extension.switch", havingValue = "true")
   public RemoteJarClassLoader dubboInvokerLoader() {
     try {
+      RemoteJarClassLoader baseLoader;
       if (StringUtils.isNotBlank(jarFilePath)) {
-        return RemoteJarLoaderUtils.loadJar(jarFilePath);
+        baseLoader = RemoteJarLoaderUtils.loadJar(jarFilePath);
       } else {
-        return RemoteJarLoaderUtils.loadJar(loadLocalInvokerJar().getPath());
+        baseLoader = RemoteJarLoaderUtils.loadJar(loadLocalInvokerJar().getPath());
       }
+      return appendExtraJars(baseLoader);
     } catch (Throwable t) {
       LOGGER.error("Load invoker jar failed, application startup blocked", t);
     }
     LOGGER.error("No invoker found, application startup blocked");
     throw new RuntimeException("No invoker found");
+  }
+
+  /**
+   * Merge the configured extra jars into the SAME class loader that carries
+   * Dubbo (dubboInvoker.jar), returning one {@link RemoteJarClassLoader} whose
+   * URL array holds both. This is required for Dubbo SPI: Dubbo's
+   * ExtensionLoader scans META-INF/dubbo(/internal)/... using the class loader
+   * that DEFINED the Dubbo classes. If the extra jars were only exposed through
+   * a CHILD loader, that defining (parent) loader could not see the child's
+   * URLs, so a custom Protocol class would load fine via the child but Dubbo
+   * would still report "no such extension". Putting every jar in one loader
+   * makes getResources() enumerate all of them, so both the protocol class and
+   * its SPI registration file are visible to Dubbo. When no extra jar is
+   * configured the base loader is returned unchanged.
+   */
+  private RemoteJarClassLoader appendExtraJars(RemoteJarClassLoader baseLoader) {
+    if (StringUtils.isBlank(extraJarPaths)) {
+      return baseLoader;
+    }
+    List<URL> urls = new ArrayList<>(Arrays.asList(baseLoader.getURLs()));
+    boolean added = false;
+    for (String path : extraJarPaths.split(",")) {
+      String trimmed = StringUtils.trimToNull(path);
+      if (trimmed == null) {
+        continue;
+      }
+      try {
+        urls.add(trimmed.startsWith("http") ? new URL(trimmed)
+            : new File(trimmed).toURI().toURL());
+        added = true;
+      } catch (IOException e) {
+        LOGGER.error("Invalid extra invoker jar path: {}", trimmed, e);
+      }
+    }
+    if (!added) {
+      return baseLoader;
+    }
+    LOGGER.info("Merge extra invoker jars into the dubbo class loader: {}", urls);
+    return new RemoteJarClassLoader(urls.toArray(new URL[0]), baseLoader.getParent());
   }
 
   @Bean("replayExtensionInvoker")

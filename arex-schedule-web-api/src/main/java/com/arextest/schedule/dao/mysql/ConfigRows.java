@@ -16,7 +16,7 @@ public final class ConfigRows {
   @Data
   public static class Application {
 
-    private Long seq;
+    private Long autoId;
     private String id;
     private String appId;
     private Integer features;

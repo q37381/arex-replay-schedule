@@ -9,8 +9,10 @@ import org.apache.ibatis.annotations.Update;
 
 /**
  * MyBatis mapper of the replay_plan_item table (mongo ReplayPlanItem
- * collection). The $inc on noiseFinishedContexts.&lt;contextName&gt; becomes a
- * single atomic JSON_SET statement.
+ * collection). noise_finished_contexts is a plain TEXT column holding a JSON
+ * object; the mongo $inc on noiseFinishedContexts.&lt;contextName&gt; is done in
+ * the repository as a read-merge-write guarded by selectNoiseForUpdate, so no
+ * MySQL JSON path function is involved.
  */
 @Mapper
 public interface ReplayPlanItemMapper {
@@ -45,19 +47,13 @@ public interface ReplayPlanItemMapper {
   List<ReplayPlanItemEntity> queryByPlanId(@Param("planId") String planId);
 
   /**
-   * Atomic equivalent of mongo's $inc on the dynamic key
-   * noiseFinishedContexts.&lt;contextName&gt;. The json path is bound as a
-   * prepared-statement parameter (pre-built escaped $."key"), so no SQL/JSON
-   * path injection is possible.
+   * Row lock for the read-merge-write cycle of noise_finished_contexts, mirroring
+   * the replay_noise mapper. The JSON map is merged in the repository (Java), not
+   * in SQL, so concurrent $inc on different context keys of the same row serialize
+   * on this lock instead of racing.
    */
-  @Update("UPDATE replay_plan_item SET noise_finished_contexts = "
-      + "JSON_SET(COALESCE(noise_finished_contexts, JSON_OBJECT()), "
-      + "#{path}, "
-      + "COALESCE(CAST(JSON_UNQUOTE(JSON_EXTRACT(noise_finished_contexts, #{path})) AS SIGNED), 0) "
-      + "+ #{count}), "
-      + "data_change_update_time = #{now} WHERE id = #{id}")
-  int incNoiseFinishedContext(@Param("id") String id, @Param("path") String path,
-      @Param("count") int count, @Param("now") long now);
+  @Select("SELECT id, noise_finished_contexts FROM replay_plan_item WHERE id = #{id} FOR UPDATE")
+  ReplayPlanItemEntity selectNoiseForUpdate(@Param("id") String id);
 
   @Update("UPDATE replay_plan_item SET noise_finished_contexts = #{noiseFinishedContexts}, "
       + "data_change_update_time = #{now} WHERE id = #{id}")

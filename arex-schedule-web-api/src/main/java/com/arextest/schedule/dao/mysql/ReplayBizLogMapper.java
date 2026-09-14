@@ -8,7 +8,7 @@ import org.apache.ibatis.annotations.Select;
 
 /**
  * MyBatis mapper of the replay_biz_log table (mongo ReplayBizLog collection).
- * Rows are listed ascending by the auto-increment seq, mirroring the mongo
+ * Rows are listed ascending by the auto-increment auto_id, mirroring the mongo
  * edition's _id ASC ordering.
  */
 @Mapper
@@ -40,8 +40,8 @@ public interface ReplayBizLogMapper {
       + "</foreach></script>")
   int batchInsert(@Param("list") List<ReplayBizLogEntity> list);
 
-  @Select("<script>SELECT seq, " + COLUMNS + " FROM replay_biz_log WHERE plan_id = #{planId} "
-      + FILTERS + " ORDER BY seq ASC "
+  @Select("<script>SELECT auto_id, " + COLUMNS + " FROM replay_biz_log WHERE plan_id = #{planId} "
+      + FILTERS + " ORDER BY auto_id ASC "
       + "<if test='offset != null and limit != null'>LIMIT #{offset}, #{limit}</if></script>")
   List<ReplayBizLogEntity> query(@Param("planId") String planId,
       @Param("levels") List<Integer> levels, @Param("types") List<Integer> types,

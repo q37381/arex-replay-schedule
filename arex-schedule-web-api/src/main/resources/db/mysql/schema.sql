@@ -12,6 +12,7 @@
 
 -- ReplayPlan collection
 CREATE TABLE IF NOT EXISTS `replay_plan` (
+  `auto_id`                 BIGINT       NOT NULL AUTO_INCREMENT,
   `id`                      VARCHAR(64)  NOT NULL,
   `app_id`                  VARCHAR(128) NOT NULL,
   `plan_name`               VARCHAR(255) DEFAULT NULL,
@@ -36,13 +37,15 @@ CREATE TABLE IF NOT EXISTS `replay_plan` (
   `replay_plan_stage_list`  TEXT         DEFAULT NULL COMMENT 'JSON array of ReplayPlanStageInfo',
   `data_change_create_time` BIGINT       DEFAULT NULL,
   `data_change_update_time` BIGINT       DEFAULT NULL,
-  PRIMARY KEY (`id`),
+  PRIMARY KEY (`auto_id`),
+  UNIQUE KEY `uk_id` (`id`),
   -- timeoutPlanList: unfinished plans inside a create-time window
   KEY `idx_finish_create` (`plan_finish_time`, `plan_create_time`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
 -- ReplayPlanItem collection
 CREATE TABLE IF NOT EXISTS `replay_plan_item` (
+  `auto_id`                  BIGINT       NOT NULL AUTO_INCREMENT,
   `id`                       VARCHAR(64)  NOT NULL,
   `app_id`                   VARCHAR(128) NOT NULL,
   `operation_id`             VARCHAR(64)  NOT NULL DEFAULT '',
@@ -54,12 +57,14 @@ CREATE TABLE IF NOT EXISTS `replay_plan_item` (
   `replay_finish_time`       BIGINT       DEFAULT NULL COMMENT 'epoch millis',
   `data_change_create_time`  BIGINT       DEFAULT NULL,
   `data_change_update_time`  BIGINT       DEFAULT NULL,
-  PRIMARY KEY (`id`),
+  PRIMARY KEY (`auto_id`),
+  UNIQUE KEY `uk_id` (`id`),
   KEY `idx_plan_id` (`plan_id`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
 -- ReplayRunDetails collection: the hot table, one row per case to send
 CREATE TABLE IF NOT EXISTS `replay_run_details` (
+  `auto_id`                 BIGINT       NOT NULL AUTO_INCREMENT,
   `id`                      VARCHAR(64)  NOT NULL,
   `plan_id`                 VARCHAR(64)  NOT NULL,
   `plan_item_id`            VARCHAR(64)  DEFAULT NULL,
@@ -78,7 +83,8 @@ CREATE TABLE IF NOT EXISTS `replay_run_details` (
   `case_status`             INT          NOT NULL DEFAULT 0,
   `data_change_create_time` BIGINT       DEFAULT NULL,
   `data_change_update_time` BIGINT       DEFAULT NULL,
-  PRIMARY KEY (`id`),
+  PRIMARY KEY (`auto_id`),
+  UNIQUE KEY `uk_id` (`id`),
   -- waitingSendList: per-plan pending cases ordered by record time
   KEY `idx_plan_send_time` (`plan_id`, `send_status`, `record_time`),
   -- waitingSendList compare_status OR-branch / failedCaseList
@@ -89,6 +95,7 @@ CREATE TABLE IF NOT EXISTS `replay_run_details` (
 
 -- ReplayCompareResult collection
 CREATE TABLE IF NOT EXISTS `replay_compare_result` (
+  `auto_id`                 BIGINT       NOT NULL AUTO_INCREMENT,
   `id`                      VARCHAR(64)  NOT NULL,
   `plan_id`                 VARCHAR(64)  DEFAULT NULL,
   `plan_item_id`            VARCHAR(64)  DEFAULT NULL,
@@ -111,7 +118,8 @@ CREATE TABLE IF NOT EXISTS `replay_compare_result` (
   `msg_info`                MEDIUMTEXT   DEFAULT NULL COMMENT 'JSON object',
   `data_change_create_time` BIGINT       DEFAULT NULL,
   `data_change_update_time` BIGINT       DEFAULT NULL,
-  PRIMARY KEY (`id`),
+  PRIMARY KEY (`auto_id`),
+  UNIQUE KEY `uk_id` (`id`),
   KEY `idx_record_item` (`record_id`, `plan_item_id`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
@@ -119,6 +127,7 @@ CREATE TABLE IF NOT EXISTS `replay_compare_result` (
 -- saveList; item maps are JSON objects keyed by fuzzy path and merged in a
 -- transaction (SELECT ... FOR UPDATE) to keep the $inc accumulation atomic.
 CREATE TABLE IF NOT EXISTS `replay_noise` (
+  `auto_id`                 BIGINT       NOT NULL AUTO_INCREMENT,
   `id`                      VARCHAR(64)  NOT NULL,
   `plan_id`                 VARCHAR(64)  NOT NULL,
   `plan_item_id`            VARCHAR(64)  NOT NULL,
@@ -131,14 +140,15 @@ CREATE TABLE IF NOT EXISTS `replay_noise` (
   `data_change_create_date` BIGINT       DEFAULT NULL COMMENT 'epoch millis',
   `data_change_create_time` BIGINT       DEFAULT NULL,
   `data_change_update_time` BIGINT       DEFAULT NULL,
-  PRIMARY KEY (`id`),
+  PRIMARY KEY (`auto_id`),
+  UNIQUE KEY `uk_id` (`id`),
   UNIQUE KEY `uk_noise` (`plan_id`, `plan_item_id`, `category_name`, `operation_name_hash`),
   KEY `idx_plan_item` (`plan_item_id`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
--- ReplayBizLog collection. seq preserves the mongo _id ASC listing order.
+-- ReplayBizLog collection. auto_id preserves the mongo _id ASC listing order.
 CREATE TABLE IF NOT EXISTS `replay_biz_log` (
-  `seq`                     BIGINT       NOT NULL AUTO_INCREMENT,
+  `auto_id`                 BIGINT       NOT NULL AUTO_INCREMENT,
   `id`                      VARCHAR(64)  NOT NULL,
   `log_date`                BIGINT       DEFAULT NULL COMMENT 'epoch millis',
   `log_level`               INT          NOT NULL DEFAULT 0,
@@ -159,7 +169,7 @@ CREATE TABLE IF NOT EXISTS `replay_biz_log` (
   `re_run`                  TINYINT(1)   DEFAULT NULL,
   `data_change_create_time` BIGINT       DEFAULT NULL,
   `data_change_update_time` BIGINT       DEFAULT NULL,
-  PRIMARY KEY (`seq`),
+  PRIMARY KEY (`auto_id`),
   UNIQUE KEY `uk_id` (`id`),
-  KEY `idx_plan` (`plan_id`, `seq`)
+  KEY `idx_plan` (`plan_id`, `auto_id`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;

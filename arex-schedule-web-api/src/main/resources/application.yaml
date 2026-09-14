@@ -124,4 +124,8 @@ replay:
   sender:
     extension:
       jarPath:
+      # Optional comma-separated extra jars (file path or http url) loaded into the
+      # same class loader as Dubbo, used to plug in a custom Dubbo Protocol/SPI
+      # that dubboInvoker.jar does not bundle. Leave empty to keep default behavior.
+      extraJarPaths:
       switch: true
