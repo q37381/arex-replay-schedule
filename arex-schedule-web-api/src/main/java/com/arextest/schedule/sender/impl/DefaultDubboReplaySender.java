@@ -87,7 +87,21 @@ public class DefaultDubboReplaySender extends AbstractReplaySender {
       LOGGER.error("selectLoadBalanceInstance failed, caseItem:{}", caseItem);
       return null;
     }
-    String url = appendVersionAndGroup(instanceRunner.getUrl(), headers);
+    String url;
+    String protocol = headers.get("protocol");                 // json / tsocket / ...
+    if (StringUtils.isNotEmpty(protocol)
+            && !StringUtils.equalsIgnoreCase("dubbo", protocol)) {
+      String endpoint = instanceRunner.getUrl();               // http://ip:port
+      String hostPort = endpoint.replaceFirst("^[a-zA-Z]+://", "");  // ip:port
+      String path = headers.get("dubboPath");               // 录制到的 getPath()
+      if (StringUtils.isEmpty(path)) {
+        path = interfaceNameAndMethod.left;
+      }
+      url = protocol + "://" + hostPort + "/" + path;      // json://ip:port/json/interfaceName
+    } else {
+      url = instanceRunner.getUrl();
+    }
+    url = appendVersionAndGroup(url, headers);
 
     DubboParameters dubboParameters = getDubboParameters(caseItem);
     return new DubboInvocation(url, headers, interfaceNameAndMethod.left,
