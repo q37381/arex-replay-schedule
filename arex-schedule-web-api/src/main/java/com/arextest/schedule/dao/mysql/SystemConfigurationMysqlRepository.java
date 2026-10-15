@@ -1,6 +1,7 @@
 package com.arextest.schedule.dao.mysql;
 
 import com.arextest.config.model.dao.config.SystemConfigurationCollection;
+import com.arextest.config.model.dao.config.SystemConfigurationCollection.KeySummary;
 import com.arextest.config.model.dto.system.ComparePluginInfo;
 import com.arextest.config.model.dto.system.DesensitizationJar;
 import com.arextest.schedule.dao.SystemConfigurationRepository;
@@ -12,11 +13,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 
-/**
- * Mysql implementation of {@link SystemConfigurationRepository}: read-only
- * lookup on the shared config_system table owned by arex-storage. Active when
- * arex.schedule.repository.type=mysql (the default).
- */
 @Repository
 @RequiredArgsConstructor
 @ConditionalOnProperty(name = "arex.schedule.repository.type", havingValue = "mysql",
@@ -40,18 +36,41 @@ public class SystemConfigurationMysqlRepository implements SystemConfigurationRe
     SystemConfigurationCollection collection = new SystemConfigurationCollection();
     collection.setId(row.getId());
     collection.setKey(row.getConfigKey());
-    collection.setRefreshTaskMark(
-        MysqlJsonSupport.readJson(row.getRefreshTaskMark(), REFRESH_TASK_MARK_TYPE));
-    collection.setDesensitizationJar(
-        MysqlJsonSupport.readJson(row.getDesensitizationJar(), DesensitizationJar.class));
-    collection.setCallbackUrl(row.getCallbackUrl());
-    collection.setAuthSwitch(row.getAuthSwitch());
-    collection.setComparePluginInfo(
-        MysqlJsonSupport.readJson(row.getComparePluginInfo(), ComparePluginInfo.class));
-    collection.setJwtSeed(row.getJwtSeed());
-    collection.setIgnoreNodeSet(MysqlJsonSupport.readJson(row.getIgnoreNodeSet(), STRING_SET));
+    String value = row.getConfigValue();
+    if (value != null) {
+      dispatchValue(collection, key, value);
+    }
     collection.setDataChangeCreateTime(row.getDataChangeCreateTime());
     collection.setDataChangeUpdateTime(row.getDataChangeUpdateTime());
     return collection;
+  }
+
+  private void dispatchValue(SystemConfigurationCollection c, String key, String value) {
+    switch (key) {
+      case KeySummary.AUTH_SWITCH:
+        c.setAuthSwitch(Boolean.parseBoolean(value));
+        break;
+      case KeySummary.CALLBACK_URL:
+        c.setCallbackUrl(value);
+        break;
+      case KeySummary.JWT_SEED:
+        c.setJwtSeed(value);
+        break;
+      case KeySummary.REFRESH_DATA:
+        c.setRefreshTaskMark(MysqlJsonSupport.readJson(value, REFRESH_TASK_MARK_TYPE));
+        break;
+      case KeySummary.DESERIALIZATION_JAR:
+        c.setDesensitizationJar(MysqlJsonSupport.readJson(value, DesensitizationJar.class));
+        break;
+      case KeySummary.COMPARE_PLUGIN_INFO:
+        c.setComparePluginInfo(MysqlJsonSupport.readJson(value, ComparePluginInfo.class));
+        break;
+      case KeySummary.IGNORE_NODE_SET:
+        c.setIgnoreNodeSet(MysqlJsonSupport.readJson(value, STRING_SET));
+        break;
+      default:
+        c.setConfigValue(value);
+        break;
+    }
   }
 }

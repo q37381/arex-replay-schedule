@@ -44,13 +44,7 @@ public final class ConfigRows {
 
     private String id;
     private String configKey;
-    private String refreshTaskMark;
-    private String desensitizationJar;
-    private String callbackUrl;
-    private Boolean authSwitch;
-    private String comparePluginInfo;
-    private String jwtSeed;
-    private String ignoreNodeSet;
+    private String configValue;
     private Long dataChangeCreateTime;
     private Long dataChangeUpdateTime;
   }

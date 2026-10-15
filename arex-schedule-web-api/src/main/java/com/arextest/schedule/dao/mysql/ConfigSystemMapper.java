@@ -12,8 +12,7 @@ import org.apache.ibatis.annotations.Select;
 @Mapper
 public interface ConfigSystemMapper {
 
-  String COLUMNS = "id, config_key, refresh_task_mark, desensitization_jar, callback_url, "
-      + "auth_switch, compare_plugin_info, jwt_seed, ignore_node_set, data_change_create_time, "
+  String COLUMNS = "id, config_key, config_value, data_change_create_time, "
       + "data_change_update_time";
 
   @Select("SELECT " + COLUMNS + " FROM config_system WHERE config_key = #{key} LIMIT 1")
